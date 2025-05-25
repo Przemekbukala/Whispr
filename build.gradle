@@ -1,0 +1,59 @@
+plugins {
+    id 'java' // Włącza podstawowe funkcjonalności Javy
+    id 'application' // Włącza obsługę uruchamiania aplikacji (task 'run')
+    id 'org.openjfx.javafxplugin' version '0.1.0' // Plugin JavaFX, sprawdź aktualną wersję
+    // Zawsze warto sprawdzić najnowszą stabilną wersję pluginu na Gradle Plugin Portal:
+    // https://plugins.gradle.org/plugin/org.openjfx.javafxplugin
+}
+
+group 'com.whispr' // Grupa Twojego projektu
+version '0.1' // Wersja projektu
+
+repositories {
+    mavenCentral() // Główne repozytorium do pobierania zależności
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21) // Ustaw wersję Javy (np. 17 lub 21)
+    }
+}
+
+// Konfiguracja JavaFX
+javafx {
+    version = "21" // Ustaw wersję JavaFX, upewnij się, że jest kompatybilna z JDK
+    modules = [ 'javafx.controls', 'javafx.fxml' ] // Moduły JavaFX, których potrzebujesz
+    // Możesz dodać 'javafx.graphics', 'javafx.base' jeśli będziesz ich używać bezpośrednio
+}
+
+dependencies {
+    // Biblioteka do obsługi JSON (Gson)
+    implementation 'com.google.code.gson:gson:2.10.1' // Najnowsza wersja Gson, sprawdź aktualną
+
+    // Sterownik JDBC dla SQLite
+    implementation 'org.xerial:sqlite-jdbc:3.45.1.0' // Najnowsza wersja, sprawdź aktualną
+
+    // Biblioteka do hashowania haseł BCrypt
+    implementation 'org.mindrot:jbcrypt:0.4'
+
+    // --- Zależności do testów (JUnit 5) ---
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0' // API JUnit 5
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0' // Silnik JUnit 5 do uruchamiania testów
+    // ------------------------------------
+}
+
+// Konfiguracja do uruchamiania aplikacji
+application {
+    // Jeśli używasz systemu modułów Javy (JPMS, module-info.java), podajesz tu nazwę modułu.
+    // Domyślnie Gradle może spróbować określić, ale jawne podanie jest bezpieczniejsze.
+    // Jeśli nie używasz module-info.java, ta linia może być pominięta lub zakomentowana,
+    // ale z pluginem JavaFX i Java 9+, moduły są często potrzebne.
+    // Jeśli masz problem z uruchomieniem, spróbuj ją usunąć.
+    mainModule = 'com.whispr.securechat.client' // Przyjmując strukturę modułów (lub zostaw puste, jeśli nie używasz module-info.java)
+    mainClass = 'com.whispr.securechat.client.gui.MainApplication' // Główna klasa startowa JavaFX
+}
+
+// Konfiguracja testów JUnit
+test {
+    useJUnitPlatform() // Włącza wsparcie dla JUnit Platform (JUnit 5)
+}

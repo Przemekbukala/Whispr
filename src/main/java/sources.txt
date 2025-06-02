@@ -1,0 +1,16 @@
+com/whispr/securechat/client/gui/MainApplication.java
+com/whispr/securechat/client/gui/ChatController.java
+com/whispr/securechat/client/gui/LoginController.java
+com/whispr/securechat/client/networking/ClientNetworkManager.java
+com/whispr/securechat/client/ChatClient.java
+com/whispr/securechat/server/networking/ClientManager.java
+com/whispr/securechat/server/networking/ClientHandler.java
+com/whispr/securechat/server/ChatServer.java
+com/whispr/securechat/common/Message.java
+com/whispr/securechat/common/User.java
+com/whispr/securechat/common/Constants.java
+com/whispr/securechat/common/MessageType.java
+com/whispr/securechat/security/AESEncryptionUtil.java
+com/whispr/securechat/security/RSAEncryptionUtil.java
+com/whispr/securechat/database/DatabaseManager.java
+com/whispr/securechat/database/PasswordHasher.java

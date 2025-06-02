@@ -1,7 +1,7 @@
 package com.whispr.securechat.common;
 
 public final class Constants { // Klasa finalna, ponieważ to klasa z samymi stałymi
-    public static final int SERVER_PORT = 12345; // Przykładowy port
+    public static final int SERVER_PORT = 5001; // Przykładowy port
     public static final String AES_ALGORITHM = "AES/ECB/PKCS5Padding"; // Rekomendacja z projektu [cite: 57]
     public static final String RSA_ALGORITHM = "RSA";
     public static final String HASH_ALGORITHM = "BCrypt"; // Lub "BCrypt" [cite: 65]

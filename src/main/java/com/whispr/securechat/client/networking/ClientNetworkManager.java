@@ -1,6 +1,6 @@
 package com.whispr.securechat.client.networking;
-
-
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
@@ -12,20 +12,34 @@ import com.whispr.securechat.common.Message;
 import com.google.gson.Gson; // Przykładowa biblioteka do JSON [cite: 63]
 
 public class ClientNetworkManager implements Runnable {
-    private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
+    public Socket socket;
+    public BufferedReader in;
+    public PrintWriter out;
+    /// //////////////////// stowrzony do testów
+    public BufferedReader stdin;
+    /// ////
+
     // Lub
     // private ObjectInputStream objectIn;
     // private ObjectOutputStream objectOut;
-    private Gson gson; // Instancja Gson do serializacji/deserializacji JSON
+//    private Gson gson; // Instancja Gson do serializacji/deserializacji JSON
 
     // Callback do ChatClient, gdy wiadomość zostanie odebrana
-    private MessageReceiver messageReceiver;
+//    private MessageReceiver messageReceiver;
 
-    public ClientNetworkManager(Socket socket) { /* ... */ }
+    public ClientNetworkManager(Socket socket) {
+        this.socket= socket;
+        try{
+            this.out = new PrintWriter(socket.getOutputStream(), true);
+            this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            this.stdin = new BufferedReader(new InputStreamReader(System.in));
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-    public void setMessageReceiver(MessageReceiver receiver) { /* ... */ }
+//    public void setMessageReceiver(MessageReceiver receiver) { /* ... */ }
 
     public void sendData(Message message) throws Exception {
         // Serializuje obiekt Message do JSON i wysyła przez socket
@@ -37,11 +51,18 @@ public class ClientNetworkManager implements Runnable {
     }
 
     public void close() {
-        // Zamyka socket i strumienie
+        try {
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (stdin != null) stdin.close();
+            if (socket != null) socket.close();
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // Interfejs dla odbiorcy wiadomości
-    public interface MessageReceiver {
-        void onMessageReceived(Message message);
-    }
+//    public interface MessageReceiver {
+//        void onMessageReceived(Message message);
+//    }
 }

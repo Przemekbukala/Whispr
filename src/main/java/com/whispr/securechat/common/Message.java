@@ -46,4 +46,15 @@ public class Message implements Serializable {
     public void setPayload(String payload) {
         this.payload = payload;
     }
+
+    @Override
+    public String toString() {
+        return "Message{" +
+                "type=" + type +
+                ", sender='" + sender + '\'' +
+                ", recipient='" + recipient + '\'' +
+                ", payload='" + payload + '\'' +
+                ", timestamp=" + timestamp +
+                '}';
+    }
 }

@@ -16,6 +16,7 @@ import com.whispr.securechat.client.networking.ClientNetworkManager;
 //import com.whispr.securechat.security.AESEncryptionUtil;
 //import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.common.Constants;
+import com.whispr.securechat.common.User;
 import com.whispr.securechat.server.ChatServer;
 
 public class ChatClient {
@@ -34,9 +35,8 @@ public class ChatClient {
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
-        try (Socket s = new Socket(this.serverAddress, this.serverPort);)
-        {
-            networkManager=new ClientNetworkManager(s);
+        try (Socket s = new Socket(this.serverAddress, this.serverPort);) {
+            networkManager = new ClientNetworkManager(s);
             String outs;
             String ins;
             while ((outs = networkManager.in.readLine()) != null) {
@@ -98,14 +98,14 @@ public class ChatClient {
 //    // Interfejsy dla listenerów (lub osobne pliki)
     public interface MessageReceivedListener {
         //        void onMessageReceived(String sender, String content);
-//    }
-//
-        public interface UserListListener {
-//        void onUserListUpdated(Set<User> users);
-        }
+    }
 
-        public interface ConnectionStatusListener {
+    //
+    public interface UserListListener {
+        //void onUserListUpdated(Set<User> users);
+    }
+
+    public interface ConnectionStatusListener {
 //        void onConnectionStatusChanged(boolean connected);
-        }
     }
 }

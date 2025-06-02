@@ -8,18 +8,24 @@ import java.util.Set;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.User;
 
+import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
+
 public class ClientManager {
     // Mapuje login użytkownika na jego ClientHandler
-    private Map<String, ClientHandler> loggedInClients;
+    private ConcurrentHashMap<String, ClientHandler> loggedInClients;
 
-    public ClientManager() { /* ... */ } // Konstruktor inicjalizujący mapę
+    public ClientManager() {
+        loggedInClients = new ConcurrentHashMap<>(MAX_CLIENTS);
+    } // Konstruktor inicjalizujący mapę
 
     public void addClient(String username, ClientHandler handler) {
         // Dodaje nowego zalogowanego klienta
+        loggedInClients.put(username,handler);
     }
 
     public void removeClient(String username) {
         // Usuwa klienta po wylogowaniu/rozłączeniu
+        loggedInClients.remove(username);
     }
 
     public ClientHandler getClientHandler(String username) {

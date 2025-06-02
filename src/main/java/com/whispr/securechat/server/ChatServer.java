@@ -24,6 +24,8 @@ public class ChatServer {
     private ExecutorService clientThreadPool; // Pula wątków dla ClientHandlerów
     private DatabaseManager dbManager;
     private ClientManager clientManager; // Do zarządzania połączonymi klientami
+
+
     private boolean running;
     PrivateKey serverRSAPrivateKey;
     PublicKey serverRSAPublicKey;
@@ -42,45 +44,65 @@ public class ChatServer {
             System.out.println("Server RSA keys generated.");
         } catch (Exception e) {
             System.err.println("Error generating server RSA keys: " + e.getMessage());
-            // Możesz rzucić wyjątek, aby serwer nie wystartował bez kluczy
         }
-    } // Konstruktor
+    }
 
     public void start() throws Exception {
-        // Uruchamia ServerSocket i czeka na połączenia klientów [cite: 53]
+        // Uruchamia ServerSocket i czeka na połączenia klientów
         System.out.println("ChatServer is starting on port " + port + "...");
         try {
             serverSocket = new ServerSocket(port);
             System.out.println("ChatServer successfully started on " +
                     InetAddress.getLocalHost() + ":" + port +
                     ". Waiting for connections...");
-
             while (running) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected: " +
-                        clientSocket.getInetAddress().getHostAddress());
-                ClientHandler clientHandler = new ClientHandler(clientSocket,this,serverRSAPrivateKey);
-                clientManager.addClient(clientSocket.getInetAddress().getHostAddress(),clientHandler);
-                clientThreadPool.execute(clientHandler);
+                Socket clientSocket = null;
+                try {
+                    clientSocket = serverSocket.accept();
+                    System.out.println("New client connected: " +
+                            clientSocket.getInetAddress().getHostAddress());
+                    ClientHandler clientHandler = new ClientHandler(clientSocket, this, serverRSAPrivateKey);
+//                    clientManager.addClient(clientSocket.getInetAddress().getHostAddress(), clientHandler);
+                    clientThreadPool.execute(clientHandler);
+                } catch (IOException e) {
+                    System.err.println("Error accepting or handling client connection: " + e.getMessage());
+                    if (clientSocket != null && running) {
+                        try {
+                            clientSocket.close();
+                            System.out.println("Closed faulty client socket.");
+                        } catch (IOException ex) {
+                            System.err.println("Error closing faulty client socket: " + ex.getMessage());
+                        }
+                    }
+                }
             }
-
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Server critical error: " + e.getMessage());
         }
-
-
     }
 
     public void stop() {
         // Zatrzymuje serwer i zamyka wszystkie połączenia
+        running = false;
+        try {
+            if (serverSocket != null) serverSocket.close();
+            clientThreadPool.shutdown();
+            clientManager.getLoggedInUsers().forEach(user -> clientManager.removeClient(user.getUsername()));
+        } catch (IOException e) {
+            System.err.println("Error stopping server: " + e.getMessage());
+        }
     }
 
     // Metody pomocnicze (np. do obsługi logiki serwera przekazywanej z ClientHandler)
     public ClientManager getClientManager() { /* ... */
-        return null;
+        return this.clientManager;
     }
 
     public DatabaseManager getDbManager() { /* ... */
-        return null;
+        return this.dbManager;
+    }
+
+    public boolean isRunning() {
+        return running;
     }
 }

@@ -114,6 +114,7 @@ public class ChatServer {
     public boolean isRunning() {
         return running;
     }
+
     // dodałem tylko maina do testów
         public static  void  main(String[] args) throws Exception {
             ChatServer obj=new ChatServer();

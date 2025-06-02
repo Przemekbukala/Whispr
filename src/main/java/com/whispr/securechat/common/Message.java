@@ -22,7 +22,6 @@ public class Message implements Serializable {
         this.payload = payload;
         this.timestamp = timestamp;
     }
-
     public MessageType getType() {
         return type;
     }

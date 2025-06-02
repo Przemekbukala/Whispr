@@ -1,8 +1,6 @@
 package com.whispr.securechat.security;
 
-import java.security.KeyPair;
-import java.security.PublicKey;
-import java.security.PrivateKey;
+import java.security.*;
 // Importy dla exceptionów
 
 public class RSAEncryptionUtil {
@@ -10,7 +8,14 @@ public class RSAEncryptionUtil {
 
     public static KeyPair generateRSAKeyPair() throws Exception {
         // Generowanie pary kluczy RSA
-        return null; // Zwróci parę kluczy
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            return generator.generateKeyPair();
+        } catch (Exception e) {
+            System.out.println("RSA KeyPair generation failed");
+            return null;
+        }
     }
 
     public static byte[] encrypt(byte[] data, PublicKey publicKey) throws Exception {

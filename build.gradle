@@ -26,6 +26,7 @@ javafx {
     // Możesz dodać 'javafx.graphics', 'javafx.base' jeśli będziesz ich używać bezpośrednio
 }
 
+
 dependencies {
     // Biblioteka do obsługi JSON (Gson)
     implementation 'com.google.code.gson:gson:2.10.1' // Najnowsza wersja Gson, sprawdź aktualną
@@ -52,6 +53,30 @@ application {
     mainModule = 'com.whispr.securechat.client' // Przyjmując strukturę modułów (lub zostaw puste, jeśli nie używasz module-info.java)
     mainClass = 'com.whispr.securechat.client.gui.MainApplication' // Główna klasa startowa JavaFX
 }
+// To jest po to aby uruchamiac pojednyczna klase
+tasks.register('runChatClient', JavaExec) {
+    group = 'application'
+    description = 'Uruchamia klasę'
+    mainClass = 'com.whispr.securechat.client.ChatClient'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+// To jest po to aby uruchamiac pojednyczna klase
+tasks.register('runChatServer', JavaExec) {
+    group = 'application'
+    description = 'Uruchamia klasę'
+    mainClass = 'com.whispr.securechat.server.ChatServer'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+// To jest po to aby uruchamiac pojednyczna klase
+tasks.register('runClientNetworkManager', JavaExec) {
+    group = 'application'
+    description = 'Uruchamia klasę'
+    mainClass = 'com.whispr.securechat.client.networking.ClientNetworkManager'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 
 // Konfiguracja testów JUnit
 test {

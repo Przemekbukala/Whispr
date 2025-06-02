@@ -46,9 +46,10 @@ public class ClientHandler implements Runnable {
                 try {
                     Message message = (Message) objectIn.readObject();
                     System.out.println(message);
-//                    if (message != null) {
+                    if (message != null) {
 //                        handleMessage(message); // Przekieruj do obsługi wiadomości
-//                    }
+                    System.out.println(message);
+                    }
 
                     // TODO: Logika obsługi wiadomości (np. handleMessage(message))
                 } catch (IOException e) {

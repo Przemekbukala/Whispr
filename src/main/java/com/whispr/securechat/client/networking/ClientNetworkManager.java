@@ -5,36 +5,34 @@ import java.net.Socket;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 // Lub
-// import java.io.ObjectInputStream;
-// import java.io.ObjectOutputStream;
+ import java.io.ObjectInputStream;
+ import java.io.ObjectOutputStream;
 // Importy dla exceptionów
 import com.whispr.securechat.common.Message;
-import com.google.gson.Gson; // Przykładowa biblioteka do JSON [cite: 63]
+//import com.google.gson.Gson; // Przykładowa biblioteka do JSON [cite: 63]
 
 public class ClientNetworkManager implements Runnable {
     public Socket socket;
-    public BufferedReader in;
-    public PrintWriter out;
-    /// //////////////////// stowrzony do testów
     public BufferedReader stdin;
-    /// ////
-
-    // Lub
-    // private ObjectInputStream objectIn;
-    // private ObjectOutputStream objectOut;
+     private ObjectInputStream objectIn;
+     private ObjectOutputStream objectOut;
 //    private Gson gson; // Instancja Gson do serializacji/deserializacji JSON
 
     // Callback do ChatClient, gdy wiadomość zostanie odebrana
 //    private MessageReceiver messageReceiver;
 
+
     public ClientNetworkManager(Socket socket) {
-        this.socket= socket;
-        try{
-            this.out = new PrintWriter(socket.getOutputStream(), true);
-            this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.socket = socket;
+        try {
+            // Najpierw tworzymy ObjectOutputStream i flushujemy go
+            this.objectOut = new ObjectOutputStream(socket.getOutputStream());
+            this.objectOut.flush();  //opróznia bufar i wysyła wiadomość
+            // Potem tworzymy ObjectInputStream
+            this.objectIn = new ObjectInputStream(socket.getInputStream());
+            // Standardowy input do wczytywania z klawiatury (do testów)
             this.stdin = new BufferedReader(new InputStreamReader(System.in));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -52,8 +50,8 @@ public class ClientNetworkManager implements Runnable {
 
     public void close() {
         try {
-            if (in != null) in.close();
-            if (out != null) out.close();
+            if (objectIn != null) objectIn.close();
+            if (objectOut != null) objectOut.close();
             if (stdin != null) stdin.close();
             if (socket != null) socket.close();
         }catch (Exception e) {

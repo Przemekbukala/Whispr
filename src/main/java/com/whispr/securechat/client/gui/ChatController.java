@@ -34,15 +34,15 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
         // Logika wysyłania wiadomości
     }
 
-//    @Override
-//    public void onMessageReceived(String sender, String content) {
-//        // Wyświetla nową wiadomość w chatMessagesListView
-//    }
+    @Override
+    public void onMessageReceived(String sender, String content) {
+        // Wyświetla nową wiadomość w chatMessagesListView
+    }
 //
-//    @Override
-//    public void onUserListUpdated(Set<User> updatedUsers) {
-//        // Aktualizuje listę użytkowników w usersListView
-//    }
+    @Override
+    public void onUserListUpdated(Set<User> updatedUsers) {
+        // Aktualizuje listę użytkowników w usersListView
+    }
 
     private String getSelectedRecipient() {
         // Zwraca wybranego odbiorcę z listy użytkowników (jeśli wiadomość prywatna)

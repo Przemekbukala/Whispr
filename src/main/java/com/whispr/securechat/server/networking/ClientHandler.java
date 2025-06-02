@@ -49,10 +49,9 @@ public class ClientHandler implements Runnable {
 //                    if (message != null) {
 //                        handleMessage(message); // Przekieruj do obsługi wiadomości
 //                    }
-
-                    // TODO: Logika obsługi wiadomości (np. handleMessage(message))
                 } catch (IOException e) {
                     System.out.println("Client " + clientSocket.getInetAddress().getHostAddress() + " disconnected or error reading: " + e.getMessage());
+                    //TODO
                     server.getClientManager().removeClient(clientSocket.getInetAddress().getHostAddress());
 //                    server.getClientManager().removeClient(username);
                     break;

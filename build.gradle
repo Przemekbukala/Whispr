@@ -6,8 +6,8 @@ plugins {
     // https://plugins.gradle.org/plugin/org.openjfx.javafxplugin
 }
 
-group 'com.whispr' // Grupa Twojego projektu
-version '0.1' // Wersja projektu
+group = 'com.whispr' // Zmienione: dodano '='
+version = '0.1' // Zmienione: dodano '='
 
 repositories {
     mavenCentral() // Główne repozytorium do pobierania zależności

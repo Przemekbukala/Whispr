@@ -14,18 +14,13 @@ import com.whispr.securechat.common.Message;
 public class ClientNetworkManager implements Runnable {
     public Socket socket;
     public BufferedReader stdin;
-    public ObjectInputStream objectIn;
-    public ObjectOutputStream objectOut;
-
-    // tu trzeba bedzie zmienic na private!!!!!!!
-
-//    private ObjectOutputStream objectOut;
-//    private ObjectInputStream objectIn;
+    private ObjectOutputStream objectOut;
+    private ObjectInputStream objectIn;
 
 //    private Gson gson; // Instancja Gson do serializacji/deserializacji JSON
 
     // Callback do ChatClient, gdy wiadomość zostanie odebrana
-//    private MessageReceiver messageReceiver;
+    private MessageReceiver messageReceiver;
 
 
     public ClientNetworkManager(Socket socket) {
@@ -42,17 +37,53 @@ public class ClientNetworkManager implements Runnable {
             e.printStackTrace();
         }
     }
-
-
-//    public void setMessageReceiver(MessageReceiver receiver) { /* ... */ }
+    public void setMessageReceiver(MessageReceiver receiver) {
+        this.messageReceiver = receiver;
+    }
 
     public void sendData(Message message) throws Exception {
         // Serializuje obiekt Message do JSON i wysyła przez socket
-    }
+        new Thread(() -> {
+            try {
+                while ( true) {
+                    objectOut.writeObject(message);
+                    objectOut.flush();
+                    System.out.println("Klient: " + message);
+                    //sprawdzenie wyywołania disconnect
+                    close();
+                    break;
+                }
+            } catch (IOException e) {
+                System.out.println("Błąd wysyłania wiadomości.");
+            }
+        }).start();
 
+    }
     @Override
     public void run() {
         // Główna pętla wątku, odczytująca wiadomości od serwera
+        try {
+            while (!socket.isClosed()) {
+                // Odczyt obiektu typu Message
+                Object obj = objectIn.readObject();
+                if (obj instanceof Message message) {
+                    System.out.println("Odebrano wiadomość od " + message.getSender() + ": " + message.getPayload());
+                    messageReceiver.onMessageReceived(message);
+
+                    // W przyszłosci tutaj trzeba dodać  przekazanie do GUI lub listenera.
+
+                } else {
+                    System.err.println("Odebrano obiekt nie będący Message: " + obj.getClass());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Połączenie z serwerem zostało przerwane.");
+        } catch (ClassNotFoundException e) {
+            System.err.println("Nieznana klasa obiektu odebranego z serwera.");
+        } finally {
+            // zamyka zasoby po zakończeniu połaczenia
+            close();
+        }
     }
 
     public void close() {
@@ -66,8 +97,8 @@ public class ClientNetworkManager implements Runnable {
         }
     }
 
-    // Interfejs dla odbiorcy wiadomości
-//    public interface MessageReceiver {
-//        void onMessageReceived(Message message);
-//    }
+//     Interfejs dla odbiorcy wiadomości
+    public interface MessageReceiver {
+        void onMessageReceived(Message message);
+    }
 }

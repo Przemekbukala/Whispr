@@ -9,6 +9,7 @@ import com.whispr.securechat.client.ChatClient;
 import com.whispr.securechat.common.User;
 
 import java.util.Set;
+//public class ChatController{
 
 public class ChatController implements ChatClient.MessageReceivedListener, ChatClient.UserListListener {
     @FXML

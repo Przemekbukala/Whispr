@@ -20,49 +20,38 @@ import com.whispr.securechat.common.User;
 import com.whispr.securechat.server.ChatServer;
 
 import static com.whispr.securechat.common.MessageType.CHAT_MESSAGE;
+//  trzeba załątwic juz pełną komunikacje RSA wymiana rzeczy itp niehc to ładnie smiga i wgl
+// fajna komunikacja serwer- klient porządna tak aby na koncu tylko zosatła zrobienei frontu!!!!!!!!!!!
+
+
+
+
+
 
 public class ChatClient {
     private String serverAddress;
     private int serverPort;
     private ClientNetworkManager networkManager;
-//    private String username;
+    private String username;
 //    private SecretKey aesKey; // Klucz AES dla sesji klienta
 //    private KeyPair rsaKeyPair; // Para kluczy RSA klienta
 //    private PublicKey serverRSAPublicKey; // Klucz publiczny RSA serwera
     // Callbacki dla GUI (lub event bus)
 //    private MessageReceivedListener messageListener;
 //    private UserListListener userListListener;
-//    private ConnectionStatusListener connectionStatusListener;
+    private ConnectionStatusListener connectionStatusListener;
 
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
         this.networkManager=null;
-//        try (Socket s = new Socket(this.serverAddress, this.serverPort);)
-//        {
-//            networkManager=new ClientNetworkManager(s);
-//            String outs;
-//            String ins;
-//            while ((outs = networkManager.in.readLine()) != null) {
-//
-//                System.out.println("Serwer:␣" + outs);
-//                ins = networkManager.stdin.readLine();
-//                if (ins != null) {
-//                    System.out.println("Klient:␣" + ins);
-//                    networkManager.out.println(ins);
-//                }
-//            }
-//        } catch (Exception e) {
-//            System.out.println("NIeprawidłowe połączonie!!!!");
-//            e.printStackTrace(); // <-- dodaj to
-//
-//        }
     }
 
     public static void main(String[] args) {
         ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
         try {
             client.connect();
+            client.sendMessage("server","przykladowa wiadomość");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -71,57 +60,42 @@ public class ChatClient {
     public void connect() throws Exception {
         Socket socket = new Socket(serverAddress, serverPort);
         System.out.println("Połączono z serwerem: " + serverAddress + ":" + serverPort);
-        ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-        ObjectInputStream  ois = new ObjectInputStream(socket.getInputStream());
-        BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        this.networkManager=new ClientNetworkManager(socket);
+    }
 
+    public void sendMessage(String recipient, String content) throws Exception {
+        // Szyfruje i wysyła wiadomość do serwera
         Message wiadomosc_do_wyslania = new Message(
                 CHAT_MESSAGE,
-                "uzytkownik1",
-                "server",
-                "Test działania serwera",
+                username,
+                recipient,
+                content,
                 System.currentTimeMillis()
         );
-
-        new Thread(() -> {
-            try {
-                while (true) {
-                    Object obj = ois.readObject();
-                    if (obj instanceof Message) {
-                        Message msg = (Message) obj;
-                        System.out.println("Serwer: " + msg.getPayload());
-                    } else {
-                        System.out.println("Otrzymano nieznany obiekt: " + obj);
-                    }
-                }
-            } catch (Exception e) {
-                System.out.println("Rozłączono z serwerem.");
-                // e.printStackTrace();
-            }
-        }).start();
-
         // Wątek wysyłający wiadomości do serwera
         new Thread(() -> {
             try {
-//                String line;
-//                (line = consoleReader.readLine()) != null
                 while ( true) {
-//                    Message msg = new Message(line);
-                    oos.writeObject(wiadomosc_do_wyslania);
-                    oos.flush();
+                    networkManager.objectOut.writeObject(wiadomosc_do_wyslania);
+                    networkManager.objectOut.flush();
                     System.out.println("Klient: " + wiadomosc_do_wyslania);
+
+                    //sprawdzenie wyywołania disconnect
+                    disconnect();
                     break;
                 }
             } catch (IOException e) {
                 System.out.println("Błąd wysyłania wiadomości.");
-                // e.printStackTrace();
             }
         }).start();
     }
 
-
     public void disconnect() {
-        // Rozłącza się z serwerem
+            if (networkManager != null) {
+                networkManager.close();
+                networkManager = null;
+            }
+            System.out.println("Disconnected from the server.");
     }
 
     public boolean login(String username, String password) throws Exception {
@@ -134,14 +108,16 @@ public class ChatClient {
         return false;
     }
 
-    public void sendMessage(String recipient, String content) throws Exception {
-        // Szyfruje i wysyła wiadomość do serwera
-    }
 
 //    // Metody do ustawiania listenerów
 //    public void setMessageReceivedListener(MessageReceivedListener listener) { /* ... */ }
 //    public void setUserListListener(UserListListener listener) { /* ... */ }
-//    public void setConnectionStatusListener(ConnectionStatusListener listener) { /* ... */ }
+
+
+//    public void setConnectionStatusListener(ConnectionStatusListener listener) {
+//        this.connectionStatusListener = listener;
+//
+//    }
 
     //    // Wewnętrzna klasa/interfejs do obsługi odbierania wiadomości od serwera
 //    private void handleIncomingMessage(Message message) {

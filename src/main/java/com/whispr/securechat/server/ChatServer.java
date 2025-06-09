@@ -31,7 +31,6 @@ public class ChatServer {
     PublicKey serverRSAPublicKey;
 
 
-
     public ChatServer() {
         this.port = SERVER_PORT;
         this.clientThreadPool = Executors.newFixedThreadPool(MAX_CLIENTS);
@@ -59,13 +58,13 @@ public class ChatServer {
                     ". Waiting for connections...");
             while (running) {
                 Socket clientSocket = null;
-                ClientHandler    clientHandler;
+                ClientHandler clientHandler;
                 try {
                     clientSocket = serverSocket.accept();
                     System.out.println("New client connected: " + clientSocket.getInetAddress().getHostAddress());
                     // dodałem sprawdzenie czy clienthendler nie rzuca wyjątku IOException.
                     try {
-                            clientHandler = new ClientHandler(clientSocket, this, serverRSAPrivateKey);
+                        clientHandler = new ClientHandler(clientSocket, this, serverRSAPrivateKey);
                     } catch (IOException e) {
                         System.err.println("Failed to create ClientHandler: " + e.getMessage());
                         clientSocket.close();
@@ -116,8 +115,8 @@ public class ChatServer {
     }
 
     // dodałem tylko maina do testów
-        public static  void  main(String[] args) throws Exception {
-            ChatServer obj=new ChatServer();
-            obj.start();
-        }
+    public static void main(String[] args) throws Exception {
+        ChatServer obj = new ChatServer();
+        obj.start();
+    }
 }

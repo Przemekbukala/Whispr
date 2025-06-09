@@ -80,7 +80,7 @@ public class ChatClient {
                     networkManager.objectOut.flush();
                     System.out.println("Klient: " + wiadomosc_do_wyslania);
 
-                    //sprawdzenie wyywołania disconnect
+                    //sprawdzenie wywołania disconnect
                     disconnect();
                     break;
                 }

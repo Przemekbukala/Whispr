@@ -28,13 +28,17 @@ public class ClientManager {
         loggedInClients.remove(username);
     }
 
-    public ClientHandler getClientHandler(String username) {
-        // Zwraca handler dla danego użytkownika
-        return null;
+    public ClientHandler getClientHandler(String username) throws IllegalArgumentException {
+        ClientHandler handler = loggedInClients.get(username);
+        if (handler == null) {
+            throw new IllegalArgumentException("No ClientHandler found for username: " + username);
+        }
+        return handler;
     }
 
     public void forwardMessage(Message message) throws Exception {
         // Przekazuje wiadomość do wybranego odbiorcy
+
     }
 
     public void broadcastUserList() {

@@ -29,7 +29,7 @@ javafx {
 
 dependencies {
     // Biblioteka do obsługi JSON (Gson)
-    implementation 'com.google.code.gson:gson:2.10.1' // Najnowsza wersja Gson, sprawdź aktualną
+    implementation 'com.google.code.gson:gson:2.13.1' // Najnowsza wersja Gson, sprawdź aktualną
 
     // Sterownik JDBC dla SQLite
     implementation 'org.xerial:sqlite-jdbc:3.45.1.0' // Najnowsza wersja, sprawdź aktualną

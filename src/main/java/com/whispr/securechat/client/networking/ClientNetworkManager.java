@@ -1,12 +1,13 @@
 package com.whispr.securechat.client.networking;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.io.BufferedReader;
- import java.io.ObjectInputStream;
- import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
-// Importy dla exceptionów
+
 import com.whispr.securechat.common.Message;
 //import com.google.gson.Gson; // Przykładowa biblioteka do JSON [cite: 63]
 
@@ -43,8 +44,6 @@ public class ClientNetworkManager implements Runnable {
     }
 
 
-
-
 //    public void setMessageReceiver(MessageReceiver receiver) { /* ... */ }
 
     public void sendData(Message message) throws Exception {
@@ -62,7 +61,7 @@ public class ClientNetworkManager implements Runnable {
             if (objectOut != null) objectOut.close();
             if (stdin != null) stdin.close();
             if (socket != null) socket.close();
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

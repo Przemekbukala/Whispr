@@ -129,7 +129,7 @@ public class ClientHandler implements Runnable {
             System.err.println("Błąd wysyłania klucza publicznego serwera do klienta");
         }
     }
-    
+
     private void handleMessage(Message message) throws Exception {
         switch (message.getType()) {
             case PUBLIC_KEY_EXCHANGE:

@@ -24,6 +24,7 @@ public class ChatServer {
     private ExecutorService clientThreadPool; // Pula wątków dla ClientHandlerów
     private DatabaseManager dbManager;
     private ClientManager clientManager; // Do zarządzania połączonymi klientami
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChatServer.class);
 
 
     private boolean running;
@@ -37,20 +38,22 @@ public class ChatServer {
         this.running = true;
         this.clientManager = new ClientManager();
         this.dbManager = new DatabaseManager();
+        this.dbManager.initializeDatabase();
+
         try {
             KeyPair keyPair = RSAEncryptionUtil.generateRSAKeyPair();
             assert keyPair != null;
             this.serverRSAPrivateKey = keyPair.getPrivate();
             this.serverRSAPublicKey = keyPair.getPublic();
             System.out.println("Server RSA keys generated.");
-        } catch (Exception e) {
-            System.err.println("Error generating server RSA keys: " + e.getMessage());
+        } catch (Exception ex) {
+            System.err.println("Error generating server RSA keys: " + ex.getMessage());
         }
     }
 
     public void start() throws Exception {
         // Uruchamia ServerSocket i czeka na połączenia klientów
-        System.out.println("ChatServer is starting on port " + port + "...");
+        log.info("ChatServer is starting on port {}...", port);
         try {
             serverSocket = new ServerSocket(port);
             System.out.println("ChatServer successfully started on " +

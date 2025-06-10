@@ -37,6 +37,8 @@ dependencies {
     // Biblioteka do hashowania haseł BCrypt
     implementation 'org.mindrot:jbcrypt:0.4'
 
+    implementation 'ch.qos.logback:logback-classic:1.5.13'
+
     // --- Zależności do testów (JUnit 5) ---
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0' // API JUnit 5
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0' // Silnik JUnit 5 do uruchamiania testów

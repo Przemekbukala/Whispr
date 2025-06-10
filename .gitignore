@@ -33,3 +33,6 @@ build/
 *.iml
 *.ipr
 *.iws
+
+# Pliki bazy danych
+/database/

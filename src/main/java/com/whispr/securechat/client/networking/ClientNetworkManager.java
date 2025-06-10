@@ -41,23 +41,12 @@ public class ClientNetworkManager implements Runnable {
         this.messageReceiver = receiver;
     }
 
-    public void sendData(Message message) throws Exception {
+    public synchronized void  sendData(Message message) throws Exception {
         // Serializuje obiekt Message do JSON i wysyła przez socket
-        new Thread(() -> {
-            try {
-                while ( true) {
+
                     objectOut.writeObject(message);
                     objectOut.flush();
                     System.out.println("Klient: " + message);
-                    //sprawdzenie wyywołania disconnect
-                    close();
-                    break;
-                }
-            } catch (IOException e) {
-                System.out.println("Błąd wysyłania wiadomości.");
-            }
-        }).start();
-
     }
     @Override
     public void run() {

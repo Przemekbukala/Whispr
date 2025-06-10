@@ -13,6 +13,7 @@ import java.io.ObjectOutputStream;
 import javax.crypto.SecretKey;
 import java.security.PublicKey;
 import java.security.PrivateKey;
+import java.util.Base64;
 
 import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
@@ -101,8 +102,32 @@ public class ClientHandler implements Runnable {
 
     public void setAesKey(SecretKey aesKey) { /* ... */ }
 
+    void sendPublicKey(PublicKey publicKey) {
+        try {
+            PublicKey serverPublicKey = server.GetserverRSAPublicKey();
+            String encodedPublicKey = RSAEncryptionUtil.encodeToString(serverPublicKey.getEncoded());
+            Message publicKeyMessage = new Message(
+                    MessageType.PUBLIC_KEY_EXCHANGE,
+                    "server",
+                    "client",
+                    encodedPublicKey,
+                    System.currentTimeMillis()
+            );
+            objectOut.writeObject(publicKeyMessage);
+            objectOut.flush();
+            System.out.println("Serwer wysłał swój klucz publiczny RSA do " + clientSocket.getInetAddress().getHostAddress());
+        } catch (IOException e) {
+            System.err.println("Błąd wysyłania klucza publicznego serwera do klienta");
+        }
+    }
+
+
+
     private void handleMessage(Message message) throws Exception {
         switch (message.getType()) {
+            case PUBLIC_KEY_EXCHANGE:
+                sendPublicKey(server.GetserverRSAPublicKey());
+                break;
             case LOGIN:
                 // Tutaj logika logowania
                 handleLogin(message);

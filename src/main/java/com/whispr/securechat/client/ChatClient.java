@@ -1,23 +1,19 @@
 package com.whispr.securechat.client;
 
 import javax.crypto.SecretKey;
-import java.io.*;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.Set;
 // Importy dla exceptionów
 import com.whispr.securechat.client.networking.ClientNetworkManager;
-import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.Message;
-import com.whispr.securechat.common.MessageType;
 import com.whispr.securechat.common.User;
-import com.whispr.securechat.server.ChatServer;
 
 import static com.whispr.securechat.common.MessageType.CHAT_MESSAGE;
+import static com.whispr.securechat.common.MessageType.PUBLIC_KEY_EXCHANGE;
 //  trzeba załątwic juz pełną komunikacje RSA wymiana rzeczy itp niehc to ładnie smiga i wgl
 // fajna komunikacja serwer- klient porządna tak aby na koncu tylko zosatła zrobienei frontu!!!!!!!!!!!
 
@@ -35,18 +31,36 @@ public class ChatClient {
     private MessageReceivedListener messageListener;
     private UserListListener userListListener;
     private ConnectionStatusListener connectionStatusListener;
+    // aby uniknąc zapętlenia
+    private boolean clientPublicKeySent = false;
 
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
         this.networkManager=null;
+        try {
+            this.rsaKeyPair=RSAEncryptionUtil.generateRSAKeyPair();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void main(String[] args) {
         ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
         try {
+            /// Sprawdzenie czy RSA -> null
+
+            System.out.println("\n"+(client.serverRSAPublicKey!=null?client.serverRSAPublicKey.getEncoded():null)+"\n");
             client.connect();
+            // Time to  key exchange to complete before attempting to send messages
+            client.sendClientPublicKey();
+            Thread.sleep(300);
             client.sendMessage("server","przykladowa wiadomość");
+
+
+            /// Sprawdzenie czy otrzymaliśmy RSA
+            client.disconnect();
+            System.out.println("\n"+(client.serverRSAPublicKey!=null?client.serverRSAPublicKey.getEncoded():null)+"\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -67,6 +81,10 @@ public class ChatClient {
     }
 
     public void sendMessage(String recipient, String content) throws Exception {
+        if (serverRSAPublicKey == null) {
+            System.err.println("Server`s RSA public key not established.");
+            return;
+        }
         // Szyfruje i wysyła wiadomość do serwera
         Message wiadomosc_do_wyslania = new Message(
                 CHAT_MESSAGE,
@@ -86,21 +104,67 @@ public class ChatClient {
             }
             System.out.println("Disconnected from the server.");
     }
-    
+    //////////////////////
     private void initializeKeyExchange() throws Exception {
-        // Rozpoczyna proces wymiany kluczy RSA/AES z serwerem [cite: 55]
+//        // Rozpoczyna proces wymiany kluczy RSA/AES z serwerem [cite: 55]
 
     }
+
+// raczej nie static
+//private static void sendClientPublicKey()  throws Exception {
+    private synchronized void sendClientPublicKey()  throws Exception {
+        if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
+            System.err.println("Client public key could not be found.");
+            return;
+        }
+        if (clientPublicKeySent) {
+            System.out.println("Client public key already sent");
+            return;
+        }
+
+        Message wiadomosc_do_wyslania = new Message(
+                PUBLIC_KEY_EXCHANGE,
+                username,
+                "server",
+                RSAEncryptionUtil.encodeToString(rsaKeyPair.getPublic().getEncoded()),
+                System.currentTimeMillis()
+        );
+        networkManager.sendData(wiadomosc_do_wyslania);
+        clientPublicKeySent = true;
+    }
+
 
 
     // Wewnętrzna klasa/interfejs do obsługi odbierania wiadomości od serwera troche to hjest myslace
     private void handleIncomingMessage(Message message) {
-        // Przetwarza odebraną wiadomość i przekazuje do GUI
-        if (message.getType() == MessageType.CHAT_MESSAGE) {
-            if (messageListener != null) {
-                messageListener.onMessageReceived(message.getSender(), message.getPayload());
-            }
+        switch (message.getType()) {
+            case PUBLIC_KEY_EXCHANGE:
+                // Odebranie klucza RSA od serwera
+                try {
+                    String publicKeyEncoded = message.getPayload();
+                    this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
+                    System.out.println("Odebrano klucz RSA serwera.");
+                    // Wysylanie klucza klienta do serwera
+                    sendClientPublicKey();
+
+                } catch (Exception e) {
+                    System.err.println("Błąd podczas odbierania/dekodowania klucza RSA serwera: " + e.getMessage());
+                    e.printStackTrace();
+                }
+                break;
+            case CHAT_MESSAGE:
+                String payload = message.getPayload();
+                System.out.println("wiadomość od serwera: "+payload);
+
+        // trzeba dodac AES key itd
+                if (messageListener != null) {
+                    messageListener.onMessageReceived(message.getSender(), message.getPayload());
+                }
+                break;
+            default:
+                System.out.println("Odebrano wiadomość nieobsługiwanego typu: " + message.getType());
         }
+
     }
 
 

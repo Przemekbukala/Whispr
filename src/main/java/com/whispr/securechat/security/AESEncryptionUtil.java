@@ -12,7 +12,7 @@ import static com.whispr.securechat.common.Constants.RSA_ALGORITHM;
 
 
 // zamienic na CBC "AES/CBC/PKCS5Padding"
-
+// POPRAWIC TĄ linkie w RSA
 
 public class AESEncryptionUtil {
     // Zmienne: brak zmiennych instancyjnych, metody statyczne lub instancja z kluczem AES

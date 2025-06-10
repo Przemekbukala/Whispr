@@ -20,7 +20,7 @@ public class ClientManager {
 
     public void addClient(String username, ClientHandler handler) {
         // Dodaje nowego zalogowanego klienta
-        loggedInClients.put(username,handler);
+        loggedInClients.put(username, handler);
     }
 
     public void removeClient(String username) {
@@ -38,6 +38,15 @@ public class ClientManager {
 
     public void forwardMessage(Message message) throws Exception {
         // Przekazuje wiadomość do wybranego odbiorcy
+        final String recipientUsername = message.getRecipient();
+        ClientHandler recipientHandler = loggedInClients.get(recipientUsername);
+
+        if (recipientHandler != null) {
+            recipientHandler.sendMessage(message);
+        } else {
+            System.err.println("Trying to reach non-existing or logged out user: " +recipientUsername);
+
+        }
 
     }
 

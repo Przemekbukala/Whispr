@@ -87,19 +87,28 @@ public class ClientHandler implements Runnable {
 
     public void sendMessage(Message message) throws Exception {
         // Wysyła wiadomość do tego klienta, szyfrując ją jeśli to wiadomość czatu
+        if (!clientSocket.isClosed() && objectOut !=null){
+            objectOut.writeObject(message);
+            objectOut.flush();
+        }
+        System.err.println("Attempted to send a message to a closed socket for user: " + username);
     }
 
     public String getUsername() { /* ... */
-        return "";
+        return username;
     }
 
-    public void setUsername(String username) { /* ... */ }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
     public SecretKey getAesKey() { /* ... */
-        return null;
+        return aesKey;
     }
 
-    public void setAesKey(SecretKey aesKey) { /* ... */ }
+    public void setAesKey(SecretKey aesKey) {
+        this.aesKey = aesKey;
+    }
 
     private void handleMessage(Message message) throws Exception {
         switch (message.getType()) {
@@ -109,9 +118,11 @@ public class ClientHandler implements Runnable {
                 break;
             case REGISTER:
                 // Tutaj logika rejestracji
+                handleRegistration(message);
                 break;
             case CHAT_MESSAGE:
                 // Tutaj logika przesyłania wiadomości
+                server.getClientManager().forwardMessage(message);
                 break;
             // ... inne przypadki
             default:
@@ -124,34 +135,69 @@ public class ClientHandler implements Runnable {
         String gsonPayload = message.getPayload();
         LoginPayload loginPayload = gson.fromJson(gsonPayload, LoginPayload.class);
 
-        String username = loginPayload.getUsername();
-        String password = loginPayload.getPassword();
+        final String username = loginPayload.getUsername();
+        final String password = loginPayload.getPassword();
 
         try {
-            boolean ifLogInSucccessful = server.getDbManager().verifyCredentials(username, password);
+            boolean wasLoginSuccessful = server.getDbManager().verifyCredentials(username, password);
 
-            if (ifLogInSucccessful){
+            if (wasLoginSuccessful) {
                 this.username = username;
-                server.getClientManager().addClient(username,this);
+                server.getClientManager().addClient(username, this);
                 Message loginConfirmationMessage = new Message(MessageType.SERVER_INFO,
-                        "server",username,"Logged successfully!",
+                        "server", username, "Logged successfully!",
                         System.currentTimeMillis());
                 sendMessage(loginConfirmationMessage);
                 server.getClientManager().broadcastUserList();
             } else {
                 Message loginRejectionMessage = new Message(MessageType.ERROR,
-                        "server",username,"Username or password incorrect!",
+                        "server", username, "Username or password incorrect!",
                         System.currentTimeMillis());
                 sendMessage(loginRejectionMessage);
             }
         } catch (Exception e) {
-            System.err.println("Error during logging user: " + username);
+            System.err.println("Error while logging in user: " + username);
             Message loginErrorMessage = new Message(MessageType.ERROR,
-                    "server",username,"Error during logging!",
+                    "server", username, "Server error during login.",
                     System.currentTimeMillis());
-            try{
-            sendMessage(loginErrorMessage);} catch (Exception ex) {
-                System.err.println("Error!");
+            try {
+                sendMessage(loginErrorMessage);
+            } catch (Exception ex) {
+                System.err.println("Failed to send error message: " + ex.getMessage());
+            }
+            e.printStackTrace();
+        }
+    }
+
+    private void handleRegistration(Message message) {
+        String gsonPayload = message.getPayload();
+        LoginPayload registrationPayload = gson.fromJson(gsonPayload, LoginPayload.class);
+
+        final String username = registrationPayload.getUsername();
+        final String password = registrationPayload.getPassword();
+
+        try {
+            boolean wasRegistrationSuccessful = server.getDbManager().registerUser(username, password);
+            if (wasRegistrationSuccessful){
+                Message successfulRegistration = new Message(MessageType.SERVER_INFO,
+                        "server", username, "Registration successful",
+                        System.currentTimeMillis());
+                sendMessage(successfulRegistration);
+            } else {
+                Message failureRegistration = new Message(MessageType.ERROR,
+                        "server", username, "User with this name already exists.",
+                        System.currentTimeMillis());
+                sendMessage(failureRegistration);
+            }
+        } catch (Exception e) {
+            System.err.println("Error during user registration: " + username);
+            Message registrationErrorMessage = new Message(MessageType.ERROR,
+                    "server", username, "Server error during registration.",
+                    System.currentTimeMillis());
+            try {
+                sendMessage(registrationErrorMessage);
+            } catch (Exception ex) {
+                System.err.println("Failed to send error message: " + ex.getMessage());
             }
             e.printStackTrace();
         }

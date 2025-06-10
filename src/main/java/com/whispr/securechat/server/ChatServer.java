@@ -56,7 +56,7 @@ public class ChatServer {
             System.out.println("ChatServer successfully started on " +
                     InetAddress.getLocalHost() + ":" + port +
                     ". Waiting for connections...");
-            while (running) {
+            while (isRunning()) {
                 Socket clientSocket = null;
                 ClientHandler clientHandler;
                 try {

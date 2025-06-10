@@ -68,7 +68,11 @@ public class ClientNetworkManager implements Runnable {
                 Object obj = objectIn.readObject();
                 if (obj instanceof Message message) {
                     System.out.println("Odebrano wiadomość od " + message.getSender() + ": " + message.getPayload());
-                    messageReceiver.onMessageReceived(message);
+                    if (messageReceiver != null) {
+                        messageReceiver.onMessageReceived(message);
+                    } else {
+                        System.err.println("Brak ustawionego odbiorcy wiadomości (messageReceiver == null)");
+                    }
 
                     // W przyszłosci tutaj trzeba dodać  przekazanie do GUI lub listenera.
 

@@ -76,6 +76,13 @@ tasks.register('runClientNetworkManager', JavaExec) {
     mainClass = 'com.whispr.securechat.client.networking.ClientNetworkManager'
     classpath = sourceSets.main.runtimeClasspath
 }
+tasks.register('runRSAEncryptionUtil', JavaExec) {
+    group = 'application'
+    description = 'Uruchamia klasę'
+    mainClass = 'com/whispr/securechat/security/RSAEncryptionUtil'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 
 
 // Konfiguracja testów JUnit

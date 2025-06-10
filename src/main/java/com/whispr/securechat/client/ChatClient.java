@@ -9,11 +9,8 @@ import java.security.PublicKey;
 import java.util.Set;
 // Importy dla exceptionów
 import com.whispr.securechat.client.networking.ClientNetworkManager;
-//import com.whispr.securechat.common.Constants;
-//import com.whispr.securechat.common.Message;
-//import com.whispr.securechat.common.User;
-//import com.whispr.securechat.security.AESEncryptionUtil;
-//import com.whispr.securechat.security.RSAEncryptionUtil;
+import com.whispr.securechat.security.AESEncryptionUtil;
+import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
@@ -57,6 +54,14 @@ public class ChatClient {
 
     public void connect() throws Exception {
         this.networkManager=new ClientNetworkManager(new Socket(serverAddress, serverPort));
+        this.networkManager.setMessageReceiver(this::handleIncomingMessage);
+        //analgoiczne to tego poniżej
+//        networkManager.setMessageReceiver(new ClientNetworkManager.MessageReceiver() {
+//            public void onMessageReceived(Message message) {
+//                handleIncomingMessage(message);
+//            }
+//        });
+//
         new Thread(networkManager).start(); //   pętlę run()  w ClientNetworkManager
         System.out.println("Połączono z serwerem: " + serverAddress + ":" + serverPort);
     }
@@ -82,8 +87,13 @@ public class ChatClient {
             System.out.println("Disconnected from the server.");
     }
     
-        // Wewnętrzna klasa/interfejs do obsługi odbierania wiadomości od serwera troche to hjest myslace
+    private void initializeKeyExchange() throws Exception {
+        // Rozpoczyna proces wymiany kluczy RSA/AES z serwerem [cite: 55]
 
+    }
+
+
+    // Wewnętrzna klasa/interfejs do obsługi odbierania wiadomości od serwera troche to hjest myslace
     private void handleIncomingMessage(Message message) {
         // Przetwarza odebraną wiadomość i przekazuje do GUI
         if (message.getType() == MessageType.CHAT_MESSAGE) {
@@ -108,9 +118,12 @@ public class ChatClient {
         return false;
     }
 
-//    private void initializeKeyExchange() throws Exception {
-//        // Rozpoczyna proces wymiany kluczy RSA/AES z serwerem [cite: 55]
-//    }
+
+
+
+
+
+
 
 
 // Metody do ustawiania listenerów

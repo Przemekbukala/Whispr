@@ -88,7 +88,7 @@ public class ClientHandler implements Runnable {
 
     public void sendMessage(Message message) throws Exception {
         // Wysyła wiadomość do tego klienta, szyfrując ją jeśli to wiadomość czatu
-        if (!clientSocket.isClosed() && objectOut !=null){
+        if (!clientSocket.isClosed() && objectOut != null) {
             objectOut.writeObject(message);
             objectOut.flush();
         }
@@ -113,7 +113,7 @@ public class ClientHandler implements Runnable {
 
     void sendPublicKey(PublicKey publicKey) {
         try {
-            PublicKey serverPublicKey = server.GetserverRSAPublicKey();
+            PublicKey serverPublicKey = server.getServerRSAPublicKey();
             String encodedPublicKey = RSAEncryptionUtil.encodeToString(serverPublicKey.getEncoded());
             Message publicKeyMessage = new Message(
                     MessageType.PUBLIC_KEY_EXCHANGE,
@@ -129,13 +129,11 @@ public class ClientHandler implements Runnable {
             System.err.println("Błąd wysyłania klucza publicznego serwera do klienta");
         }
     }
-
-
-
+    
     private void handleMessage(Message message) throws Exception {
         switch (message.getType()) {
             case PUBLIC_KEY_EXCHANGE:
-                sendPublicKey(server.GetserverRSAPublicKey());
+                sendPublicKey(server.getServerRSAPublicKey());
                 break;
             case LOGIN:
                 // Tutaj logika logowania
@@ -152,7 +150,7 @@ public class ClientHandler implements Runnable {
             // ... inne przypadki
             default:
                 // Co zrobić, gdy serwer otrzyma nieznany typ wiadomości?
-                System.out.println("Otrzymano nieznany typ wiadomości: " + message.getType());
+                System.err.println("Received unknow message type: " + message.getType());
         }
     }
 
@@ -203,7 +201,7 @@ public class ClientHandler implements Runnable {
 
         try {
             boolean wasRegistrationSuccessful = server.getDbManager().registerUser(username, password);
-            if (wasRegistrationSuccessful){
+            if (wasRegistrationSuccessful) {
                 Message successfulRegistration = new Message(MessageType.SERVER_INFO,
                         "server", username, "Registration successful",
                         System.currentTimeMillis());

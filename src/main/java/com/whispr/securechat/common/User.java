@@ -12,5 +12,10 @@ public class User {
     @SerializedName("isOnline")
     private boolean isOnline;
 
+    public User(String username, boolean isOnline){
+        this.username = username;
+        this.isOnline = isOnline;
+    }
+
 
 }

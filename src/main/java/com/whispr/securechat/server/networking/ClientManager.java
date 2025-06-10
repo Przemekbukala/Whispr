@@ -1,11 +1,15 @@
 package com.whispr.securechat.server.networking;
 
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
 // Importy dla Message i User
+import com.google.gson.Gson;
 import com.whispr.securechat.common.Message;
+import com.whispr.securechat.common.MessageType;
 import com.whispr.securechat.common.User;
 
 import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
@@ -52,10 +56,31 @@ public class ClientManager {
 
     public void broadcastUserList() {
         // Wysyła aktualną listę użytkowników do wszystkich zalogowanych klientów
+        Set<String> usernamesSet = loggedInClients.keySet();
+        Gson gson = new Gson();
+        String jsonPayload = gson.toJson(usernamesSet);
+        Message listOfLoggedInUsers = new Message(MessageType.USER_LIST_UPDATE,
+                "server", "all", jsonPayload,
+                System.currentTimeMillis());
+        Collection<ClientHandler> clientHandlerSet = loggedInClients.values();
+        for (var handler : clientHandlerSet){
+            try {
+                handler.sendMessage(listOfLoggedInUsers);
+            } catch (Exception e) {
+                System.err.println("Error during updating active users! " +
+                        e.getMessage());
+            }
+        }
+
     }
 
     public Set<User> getLoggedInUsers() {
-        // Zwraca listę aktualnie zalogowanych użytkowników
-        return null;
+        Set<User> onlineUsers = new HashSet<>();
+        Set<String> usernamesSet = loggedInClients.keySet();
+        for (var userEntry : usernamesSet){
+            User user = new User(userEntry,true);
+            onlineUsers.add(user);
+        }
+        return onlineUsers;
     }
 }

@@ -105,9 +105,11 @@ public class ChatServer {
     public ClientManager getClientManager() { /* ... */
         return this.clientManager;
     }
-    public PublicKey GetserverRSAPublicKey() {
+
+    public PublicKey getServerRSAPublicKey() {
         return serverRSAPublicKey;
     }
+
     public DatabaseManager getDbManager() { /* ... */
         return this.dbManager;
     }

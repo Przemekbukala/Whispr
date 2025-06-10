@@ -47,25 +47,25 @@ public class RSAEncryptionUtil {
     public static PublicKey decodePublicKey(String encodedPublicKey) throws Exception {
         byte[] publicKeyData = Base64.getDecoder().decode(encodedPublicKey);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(publicKeyData);
-        KeyFactory keyFactory = KeyFactory.getInstance(RSA_ALGORITHM);
+        KeyFactory keyFactory = KeyFactory.getInstance(RSA_ALGORITHM); // ta linika moze byc nie poprawna z uwagi na zmiane stałej ktora żle była wporwadzona RSA_ALGORITHM
         return keyFactory.generatePublic(spec);
     }
 
 
 
     public static void main (String[] args) {
-//        try{
-//            KeyPair key_pair = generateRSAKeyPair();
-//            String publicKeyString = Base64.getEncoder().encodeToString(key_pair.getPublic().getEncoded());
-//            String privateKeyString = Base64.getEncoder().encodeToString(key_pair.getPrivate().getEncoded());
-//            System.out.println("Public Key: " + publicKeyString);
-//            System.out.println("Private Key: " + publicKeyString);
-//            String testowy_string=new String("testowanie działanai encrypcji");
-//            byte[] encypted_data= encrypt(testowy_string.getBytes(),key_pair.getPublic());
-//            decrypt(encypted_data,key_pair.getPrivate());
-//        }catch(Exception e){
-//            e.printStackTrace();
-//        }
+        try{
+            KeyPair key_pair = generateRSAKeyPair();
+            String publicKeyString = Base64.getEncoder().encodeToString(key_pair.getPublic().getEncoded());
+            String privateKeyString = Base64.getEncoder().encodeToString(key_pair.getPrivate().getEncoded());
+            System.out.println("Public Key: " + publicKeyString);
+            System.out.println("Private Key: " + publicKeyString);
+            String testowy_string=new String("testowanie działanai encrypcji");
+            byte[] encypted_data= encrypt(testowy_string.getBytes(),key_pair.getPublic());
+            decrypt(encypted_data,key_pair.getPrivate());
+        }catch(Exception e){
+            e.printStackTrace();
+        }
     }
 
 

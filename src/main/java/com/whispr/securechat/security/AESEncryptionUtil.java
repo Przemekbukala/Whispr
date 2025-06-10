@@ -9,6 +9,11 @@ import static com.whispr.securechat.common.Constants.AES_ALGORITHM;
 import static com.whispr.securechat.common.Constants.RSA_ALGORITHM;
 // Importy dla exceptionów
 
+
+
+// zamienic na CBC "AES/CBC/PKCS5Padding"
+
+
 public class AESEncryptionUtil {
     // Zmienne: brak zmiennych instancyjnych, metody statyczne lub instancja z kluczem AES
     // Jeśli klucz AES jest unikalny dla każdej sesji klienta, to każda instancja ClientHandler będzie miała swój SecretKey.
@@ -41,10 +46,13 @@ public class AESEncryptionUtil {
         Cipher  c =Cipher.getInstance(AES_ALGORITHM);
         c.init(Cipher.DECRYPT_MODE, aesKey);
         byte[] decrypt_data =c.doFinal(encryptedData);
-        System.out.println(new String(decrypt_data));  // zwraca prawdiłowy odkodowany text.
+//        System.out.println(new String(decrypt_data));  // zwraca prawdiłowy odkodowany text.
         return decrypt_data; // Zwróci odszyfrowane dane
 
     }
+
+
+
     public static void main (String[] args) {
         try{
             SecretKey secretKey = generateAESKey();

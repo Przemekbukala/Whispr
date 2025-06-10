@@ -35,4 +35,5 @@ build/
 *.iws
 
 # Pliki bazy danych
-/database/
+*.db
+*.sqlite

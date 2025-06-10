@@ -15,7 +15,7 @@ public class RSAEncryptionUtil {
     public static KeyPair generateRSAKeyPair() throws Exception {
         // Generowanie pary kluczy RSA
         try {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance(RSA_ALGORITHM);
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);
             return generator.generateKeyPair();
         } catch (Exception e) {
@@ -25,7 +25,7 @@ public class RSAEncryptionUtil {
     }
     public static byte[] encrypt(byte[] data, PublicKey publicKey) throws Exception {
         // Szyfrowanie danych kluczem publicznym RSA
-        Cipher  c =Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        Cipher  c =Cipher.getInstance(RSA_ALGORITHM);
         c.init(Cipher.ENCRYPT_MODE, publicKey);
         byte[] encrypt_data =c.doFinal(data);
         return encrypt_data; // Zwróci zaszyfrowane dane
@@ -33,7 +33,7 @@ public class RSAEncryptionUtil {
 
     public static byte[] decrypt(byte[] encryptedData, PrivateKey privateKey) throws Exception {
         // Deszyfrowanie danych kluczem prywatnym RSA
-        Cipher  c =Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        Cipher  c =Cipher.getInstance(RSA_ALGORITHM);
         c.init(Cipher.DECRYPT_MODE, privateKey);
         byte[] decrypt_data =c.doFinal(encryptedData);
 //        System.out.println(new String(decrypt_data));  // zwraca prawdiłowy odkodowany text.

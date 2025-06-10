@@ -84,7 +84,12 @@ tasks.register('runRSAEncryptionUtil', JavaExec) {
     mainClass = 'com/whispr/securechat/security/RSAEncryptionUtil'
     classpath = sourceSets.main.runtimeClasspath
 }
-
+tasks.register('runAESEncryptionUtil', JavaExec) {
+    group = 'application'
+    description = 'Uruchamia klasę'
+    mainClass = 'com/whispr/securechat/security/AESEncryptionUtil'
+    classpath = sourceSets.main.runtimeClasspath
+}
 
 
 // Konfiguracja testów JUnit

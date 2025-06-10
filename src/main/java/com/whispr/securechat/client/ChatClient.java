@@ -186,10 +186,6 @@ public class ChatClient {
 
 
 
-
-
-
-
 // Metody do ustawiania listenerów
     public void setMessageReceivedListener(MessageReceivedListener listener) {
     this.messageListener = listener;

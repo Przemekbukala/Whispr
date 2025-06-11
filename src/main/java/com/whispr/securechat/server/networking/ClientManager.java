@@ -49,7 +49,6 @@ public class ClientManager {
             recipientHandler.sendMessage(message);
         } else {
             System.err.println("Trying to reach non-existing or logged out user: " +recipientUsername);
-
         }
 
     }

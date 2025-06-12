@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import io.github.palexdev.materialfx.controls.MFXListView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane fx:controller="com.whispr.securechat.server.gui.AdminPanelController"
+            prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1">
+    <center>
+        <SplitPane dividerPositions="0.3" prefHeight="160.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <items>
+                <VBox spacing="10.0" VBox.vgrow="ALWAYS">
+                    <padding>
+                        <Insets top="10.0" right="10.0" bottom="10.0" left="10.0"/>
+                    </padding>
+                    <Label text="Zalogowani użytkownicy">
+                        <font>
+                            <Font name="System Bold" size="14.0"/>
+                        </font>
+                    </Label>
+                    <MFXListView fx:id="usersListView" VBox.vgrow="ALWAYS"/>
+                </VBox>
+
+                <VBox spacing="10.0" VBox.vgrow="ALWAYS">
+                    <padding>
+                        <Insets top="10.0" right="10.0" bottom="10.0" left="10.0"/>
+                    </padding>
+                    <Label text="Logi serwera">
+                        <font>
+                            <Font name="System Bold" size="14.0"/>
+                        </font>
+                    </Label>
+                    <TextArea fx:id="logTextArea" editable="false" prefHeight="200.0" VBox.vgrow="ALWAYS"/>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="10.0" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets top="10.0" right="10.0" bottom="10.0" left="10.0"/>
+            </padding>
+            <MFXButton fx:id="resetPasswordButton" text="Resetuj hasło użytkownika"/>
+            <MFXButton fx:id="kickUserButton" style="-fx-background-color: #d32f2f;" text="Wyrzuć użytkownika" textFill="WHITE"/>
+        </HBox>
+    </bottom>
+</BorderPane>

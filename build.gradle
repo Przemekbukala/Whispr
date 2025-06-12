@@ -1,98 +1,78 @@
 plugins {
-    id 'java' // Włącza podstawowe funkcjonalności Javy
-    id 'application' // Włącza obsługę uruchamiania aplikacji (task 'run')
-    id 'org.openjfx.javafxplugin' version '0.1.0' // Plugin JavaFX, sprawdź aktualną wersję
-    // Zawsze warto sprawdzić najnowszą stabilną wersję pluginu na Gradle Plugin Portal:
-    // https://plugins.gradle.org/plugin/org.openjfx.javafxplugin
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
-group = 'com.whispr' // Zmienione: dodano '='
-version = '0.1' // Zmienione: dodano '='
+group = 'com.whispr'
+version = '0.1'
 
 repositories {
-    mavenCentral() // Główne repozytorium do pobierania zależności
+    mavenCentral()
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21) // Ustaw wersję Javy (np. 17 lub 21)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
-// Konfiguracja JavaFX
 javafx {
-    version = "21" // Ustaw wersję JavaFX, upewnij się, że jest kompatybilna z JDK
-    modules = [ 'javafx.controls', 'javafx.fxml' ] // Moduły JavaFX, których potrzebujesz
-    // Możesz dodać 'javafx.graphics', 'javafx.base' jeśli będziesz ich używać bezpośrednio
+    version = "21"
+    modules = [ 'javafx.controls', 'javafx.fxml' ]
 }
-
 
 dependencies {
-    // Biblioteka do obsługi JSON (Gson)
-    implementation 'com.google.code.gson:gson:2.13.1' // Najnowsza wersja Gson, sprawdź aktualną
+    // MaterialFX
+    implementation 'io.github.palexdev:materialfx:11.17.0'
 
-    // Sterownik JDBC dla SQLite
-    implementation 'org.xerial:sqlite-jdbc:3.45.1.0' // Najnowsza wersja, sprawdź aktualną
-
-    // Biblioteka do hashowania haseł BCrypt
+    // Twoje pozostałe zależności (Gson, SQLite, BCrypt, Logback)
+    implementation 'com.google.code.gson:gson:2.13.1'
+    implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
     implementation 'org.mindrot:jbcrypt:0.4'
-
     implementation 'ch.qos.logback:logback-classic:1.5.13'
 
-    // --- Zależności do testów (JUnit 5) ---
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0' // API JUnit 5
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0' // Silnik JUnit 5 do uruchamiania testów
-    // ------------------------------------
+    // Zależności testowe
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 }
 
-// Konfiguracja do uruchamiania aplikacji
+// Konfiguracja dla głównego zadania 'run', które uruchomi panel admina
 application {
-    // Jeśli używasz systemu modułów Javy (JPMS, module-info.java), podajesz tu nazwę modułu.
-    // Domyślnie Gradle może spróbować określić, ale jawne podanie jest bezpieczniejsze.
-    // Jeśli nie używasz module-info.java, ta linia może być pominięta lub zakomentowana,
-    // ale z pluginem JavaFX i Java 9+, moduły są często potrzebne.
-    // Jeśli masz problem z uruchomieniem, spróbuj ją usunąć.
-    mainModule = 'com.whispr.securechat.client' // Przyjmując strukturę modułów (lub zostaw puste, jeśli nie używasz module-info.java)
-    mainClass = 'com.whispr.securechat.client.gui.MainApplication' // Główna klasa startowa JavaFX
-}
-// To jest po to aby uruchamiac pojednyczna klase
-tasks.register('runChatClient', JavaExec) {
-    group = 'application'
-    description = 'Uruchamia klasę'
-    mainClass = 'com.whispr.securechat.client.ChatClient'
-    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.whispr.securechat.server.gui.AdminApplication'
+    // mainModule usunięty dla uproszczenia, odkomentuj jeśli używasz module-info.java
+    // mainModule = 'com.whispr.securechat'
 }
 
-// To jest po to aby uruchamiac pojednyczna klase
+// Twoje własne zadania do uruchamiania klas bez GUI - z poprawionymi ścieżkami
 tasks.register('runChatServer', JavaExec) {
-    group = 'application'
-    description = 'Uruchamia klasę'
+    group = 'Uruchomienie' // Lepsza grupa dla przejrzystości w IDE
+    description = 'Uruchamia serwer czatu (bez GUI)'
     mainClass = 'com.whispr.securechat.server.ChatServer'
     classpath = sourceSets.main.runtimeClasspath
 }
 
-// To jest po to aby uruchamiac pojednyczna klase
-tasks.register('runClientNetworkManager', JavaExec) {
-    group = 'application'
-    description = 'Uruchamia klasę'
-    mainClass = 'com.whispr.securechat.client.networking.ClientNetworkManager'
+tasks.register('runChatClient', JavaExec) {
+    group = 'Uruchomienie'
+    description = 'Uruchamia testowego klienta w konsoli'
+    mainClass = 'com.whispr.securechat.client.ChatClient'
     classpath = sourceSets.main.runtimeClasspath
 }
+
 tasks.register('runRSAEncryptionUtil', JavaExec) {
-    group = 'application'
-    description = 'Uruchamia klasę'
-    mainClass = 'com/whispr/securechat/security/RSAEncryptionUtil'
+    group = 'Narzędzia'
+    description = 'Uruchamia test szyfrowania RSA'
+    mainClass = 'com.whispr.securechat.security.RSAEncryptionUtil' // POPRAWIONE
     classpath = sourceSets.main.runtimeClasspath
 }
+
 tasks.register('runAESEncryptionUtil', JavaExec) {
-    group = 'application'
-    description = 'Uruchamia klasę'
-    mainClass = 'com/whispr/securechat/security/AESEncryptionUtil'
+    group = 'Narzędzia'
+    description = 'Uruchamia test szyfrowania AES'
+    mainClass = 'com.whispr.securechat.security.AESEncryptionUtil' // POPRAWIONE
     classpath = sourceSets.main.runtimeClasspath
 }
 
-
-// Konfiguracja testów JUnit
 test {
-    useJUnitPlatform() // Włącza wsparcie dla JUnit Platform (JUnit 5)
+    useJUnitPlatform()
 }

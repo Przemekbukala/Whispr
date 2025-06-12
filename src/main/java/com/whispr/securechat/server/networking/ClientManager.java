@@ -1,11 +1,9 @@
 package com.whispr.securechat.server.networking;
+import com.whispr.securechat.server.gui.ServerStateListener;
 
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Set;
 // Importy dla Message i User
 import com.google.gson.Gson;
 import com.whispr.securechat.common.Message;
@@ -17,6 +15,7 @@ import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
 public class ClientManager {
     // Mapuje login użytkownika na jego ClientHandler
     private ConcurrentHashMap<String, ClientHandler> loggedInClients;
+    private final List<ServerStateListener> listeners = Collections.synchronizedList(new ArrayList<>());
 
     public ClientManager() {
         loggedInClients = new ConcurrentHashMap<>(MAX_CLIENTS);
@@ -25,11 +24,13 @@ public class ClientManager {
     public void addClient(String username, ClientHandler handler) {
         // Dodaje nowego zalogowanego klienta
         loggedInClients.put(username, handler);
+        notifyUserListChanged();
     }
 
     public void removeClient(String username) {
         // Usuwa klienta po wylogowaniu/rozłączeniu
         loggedInClients.remove(username);
+        notifyUserListChanged();
     }
 
     public ClientHandler getClientHandler(String username) throws IllegalArgumentException {
@@ -81,5 +82,22 @@ public class ClientManager {
             onlineUsers.add(user);
         }
         return onlineUsers;
+    }
+
+    public void addListener(ServerStateListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeListener(ServerStateListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void notifyUserListChanged() {
+        Set<User> onlineUsers = getLoggedInUsers();
+        synchronized (listeners) { //synchro bloku
+            for (ServerStateListener listener : listeners) {
+                listener.onUserListChanged(onlineUsers);
+            }
+        }
     }
 }

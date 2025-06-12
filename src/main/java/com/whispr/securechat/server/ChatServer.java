@@ -25,7 +25,7 @@ public class ChatServer {
     private DatabaseManager dbManager;
     private ClientManager clientManager; // Do zarządzania połączonymi klientami
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChatServer.class);
-
+    private static ChatServer instance;
 
     private boolean running;
     PrivateKey serverRSAPrivateKey;
@@ -39,6 +39,7 @@ public class ChatServer {
         this.clientManager = new ClientManager();
         this.dbManager = new DatabaseManager();
         this.dbManager.initializeDatabase();
+        instance = this;
 
         try {
             KeyPair keyPair = RSAEncryptionUtil.generateRSAKeyPair();
@@ -119,6 +120,10 @@ public class ChatServer {
 
     public boolean isRunning() {
         return running;
+    }
+
+    public static ChatServer getInstance() {
+        return instance;
     }
 
     // dodałem tylko maina do testów

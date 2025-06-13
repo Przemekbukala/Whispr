@@ -10,5 +10,6 @@ public enum MessageType {
     USER_LIST_UPDATE,
     SERVER_INFO,
     ERROR,
-    LOGOUT
+    LOGOUT,
+    ADMIN_LOGIN
 }

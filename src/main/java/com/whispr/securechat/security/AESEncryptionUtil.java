@@ -24,9 +24,8 @@ public class AESEncryptionUtil {
         // Tworzenie klucza AES
         try {
             KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-            keyGen.init(256);
-            SecretKey secretKey = keyGen.generateKey();
-            return secretKey;
+            keyGen.init(KEY_LENGTH);
+            return keyGen.generateKey();
         } catch (Exception e) {
             System.out.println("AES Key generation failed");
             return null;

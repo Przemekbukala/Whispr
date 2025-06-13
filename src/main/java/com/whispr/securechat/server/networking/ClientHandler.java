@@ -2,7 +2,6 @@ package com.whispr.securechat.server.networking;
 
 
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.net.Socket;
 //import java.io.BufferedReader; // Jeśli używasz BufferedReader/PrintWriter
 //import java.io.PrintWriter;    // Jeśli używasz BufferedReader/PrintWriter
@@ -11,6 +10,7 @@ import com.google.gson.Gson;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.security.PublicKey;
 import java.security.PrivateKey;
 import java.util.Base64;
@@ -18,9 +18,7 @@ import java.util.Base64;
 import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
-import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
-import com.whispr.securechat.database.DatabaseManager;
 import com.whispr.securechat.server.ChatServer; // Może potrzebować dostępu do ClientManager
 
 public class ClientHandler implements Runnable {
@@ -31,7 +29,7 @@ public class ClientHandler implements Runnable {
     private static final Gson gson = new Gson();
 
     private String username;
-    private SecretKey aesKey; // Klucz AES dla tej sesji klienta
+    private SecretKey aesClientKey; // Klucz AES dla tej sesji klienta
     private PrivateKey serverRSAPrivateKey; // Prywatny klucz RSA serwera
 
     // Konstruktor
@@ -103,12 +101,12 @@ public class ClientHandler implements Runnable {
         this.username = username;
     }
 
-    public SecretKey getAesKey() { /* ... */
-        return aesKey;
+    public SecretKey getAesClientKey() { /* ... */
+        return aesClientKey;
     }
 
-    public void setAesKey(SecretKey aesKey) {
-        this.aesKey = aesKey;
+    public void setAesClientKey(SecretKey aesClientKey) {
+        this.aesClientKey = aesClientKey;
     }
 
     void sendPublicKey(PublicKey publicKey) {
@@ -147,10 +145,27 @@ public class ClientHandler implements Runnable {
                 // Tutaj logika przesyłania wiadomości
                 server.getClientManager().forwardMessage(message);
                 break;
+            case AES_KEY_EXCHANGE:
+                handleAESMessage(message);
+                break;
+            case ADMIN_LOGIN:
+                break;
             // ... inne przypadki
             default:
                 // Co zrobić, gdy serwer otrzyma nieznany typ wiadomości?
                 System.err.println("Received unknow message type: " + message.getType());
+        }
+    }
+
+    private void handleAESMessage(Message message) {
+        try {
+            String encodedPayload = message.getPayload();
+            byte[] bPayload = Base64.getDecoder().decode(encodedPayload);
+            byte[] decodedPayload = RSAEncryptionUtil.decrypt(bPayload,serverRSAPrivateKey);
+            SecretKey clientKey = new SecretKeySpec(decodedPayload,"AES");
+            setAesClientKey(clientKey);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

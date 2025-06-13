@@ -1,10 +1,9 @@
 package com.whispr.securechat.server.networking;
-import com.whispr.securechat.server.gui.ServerStateListener;
+import com.whispr.securechat.admin.gui.ServerStateListener;
 
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-// Importy dla Message i User
 import com.google.gson.Gson;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;

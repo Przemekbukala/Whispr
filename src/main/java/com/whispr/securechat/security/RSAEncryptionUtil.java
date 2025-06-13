@@ -27,8 +27,7 @@ public class RSAEncryptionUtil {
         // Szyfrowanie danych kluczem publicznym RSA
         Cipher  c =Cipher.getInstance("RSA/ECB/PKCS1Padding");
         c.init(Cipher.ENCRYPT_MODE, publicKey);
-        byte[] encrypt_data =c.doFinal(data);
-        return encrypt_data; // Zwróci zaszyfrowane dane
+        return c.doFinal(data); // Zwróci zaszyfrowane dane
     }
 
     public static byte[] decrypt(byte[] encryptedData, PrivateKey privateKey) throws Exception {

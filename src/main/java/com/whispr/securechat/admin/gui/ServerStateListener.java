@@ -1,4 +1,4 @@
-package com.whispr.securechat.server.gui;
+package com.whispr.securechat.admin.gui;
 
 import com.whispr.securechat.common.User;
 import java.util.Set;

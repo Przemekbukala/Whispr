@@ -1,9 +1,7 @@
-package com.whispr.securechat.server.gui;
+package com.whispr.securechat.admin.gui;
 
 import com.whispr.securechat.common.User;
 import com.whispr.securechat.server.networking.ClientManager;
-import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXListView;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -17,15 +15,15 @@ public class AdminPanelController implements ServerStateListener {
     private ClientManager clientManager;
 
     @FXML
-    private MFXListView<User> usersListView;
+    private ListView<User> usersListView;
 
     @FXML
     private TextArea logTextArea;
 
     @FXML
-    private MFXButton kickUserButton;
+    private Button kickUserButton;
     @FXML
-    private MFXButton resetPasswordButton;
+    private Button resetPasswordButton;
 
     // Metoda-most, wywoływana z AdminApplication
     public void init(ClientManager clientManager) {

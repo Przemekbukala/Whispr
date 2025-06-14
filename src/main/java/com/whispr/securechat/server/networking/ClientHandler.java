@@ -192,6 +192,8 @@ public class ClientHandler implements Runnable {
             String decodedPassword = new String(decodedPayload, StandardCharsets.UTF_8);
             if (decodedPassword.equals(Constants.ADMIN_PASSWORD)) {
                 this.isAdmin = true;
+                server.getClientManager().addClient("admin_" + clientSocket.getRemoteSocketAddress(), this);
+                System.out.println("DEBUG: Server is sending login SUCCESS message.");
                 System.out.println("Admin authenticated successfully for client: " + clientSocket.getInetAddress());
 
                 Message successMessage = new Message(
@@ -237,7 +239,8 @@ public class ClientHandler implements Runnable {
             );
             sendMessage(aesConfirmationMessage);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            System.err.println("Failed to handle AES key exchange for " +
+                    clientSocket.getInetAddress().getHostAddress() + ": " + e.getMessage());
         }
     }
 

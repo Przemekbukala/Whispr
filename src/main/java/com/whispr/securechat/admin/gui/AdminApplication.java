@@ -4,64 +4,98 @@ import com.whispr.securechat.admin.AdminClient;
 import com.whispr.securechat.admin.AdminClientListener;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.server.ChatServer;
-//import io.github.palexdev.materialfx.theming.JavaFXThemes;
-//import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
-//import io.github.palexdev.materialfx.theming.UserAgentBuilder;
-//import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
+
+import java.util.Optional;
 
 
 public class AdminApplication extends Application implements AdminClientListener {
-    private final AdminClient adminClient = new AdminClient("localhost");
+    private AdminClient adminClient;
+    private Stage primaryStage;
+    private String enteredPassword;
 
     public static void main(String[] args) {
-        // Ta metoda uruchomi całą aplikację JavaFX
+// Ta metoda uruchomi całą aplikację JavaFX
         launch(args);
     }
-
     @Override
-    public void start(Stage primaryStage) throws Exception {
-        // Opcjonalne: Uruchamia automatyczne przeładowywanie CSS.
-        // Przydatne podczas tworzenia wyglądu, można usunąć w wersji produkcyjnej.
-        // CSSFX.start();
+    public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+        promptForPassword();
+    }
 
-        // --- POPRAWNY SPOSÓB INICJALIZACJI MOTYWU (zgodnie z Demo.java) ---
-        // Ta metoda jest nowsza i bardziej niezawodna niż MFXThemeManager.
-        // Ustawia styl globalnie dla całej aplikacji.
-//        UserAgentBuilder.builder()
-//                .themes(JavaFXThemes.MODENA) // Ustawia bazowy motyw JavaFX
-//                .themes(MaterialFXStylesheets.forAssemble(true)) // Dodaje wszystkie potrzebne style MaterialFX
-//                .setDeploy(true)
-//                .setResolveAssets(true)
-//                .build()
-//                .setGlobal();
+    private void promptForPassword() {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Admin Login");
+        dialog.setHeaderText("Authentication Required");
 
-        // 1. Wskazanie i załadowanie pliku FXML z wyglądem
+// Typy przycisków
+        ButtonType loginButtonType = ButtonType.OK;
+        dialog.getDialogPane().getButtonTypes().addAll(loginButtonType, ButtonType.CANCEL);
+// Layout making
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+// Maskowanie hasła
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Password");
+        grid.add(new Label("Password:"), 0, 0);
+        grid.add(passwordField, 1, 0);
+
+// wył. login
+        Node loginButton = dialog.getDialogPane().lookupButton(loginButtonType);
+        loginButton.setDisable(true);
+
+        passwordField.textProperty().addListener((observable, oldValue, newValue) -> {
+            loginButton.setDisable(newValue.trim().isEmpty());
+        });
+
+        dialog.getDialogPane().setContent(grid);
+        Platform.runLater(passwordField::requestFocus);
+
+        dialog.setResultConverter(dialogButton -> {
+
+            if (dialogButton == loginButtonType) {
+                return passwordField.getText();
+            }
+            return null;
+        });
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresentOrElse(
+                password -> {
+                    this.enteredPassword = password;
+                    initializeNetworkConnection();
+                },
+                () -> {
+                    System.out.println("Login cancelled by user.");
+                    Platform.exit();
+                }
+        );
+    }
+
+
+    private void initializeNetworkConnection() {
+        adminClient = new AdminClient("localhost");
+        adminClient.setListener(this);
+        adminClient.connect();
+    }
+
+
+    private void showAdminPanel() throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/whispr/securechat/admin/gui/AdminPanel.fxml"));
         Parent root = loader.load();
-
-        // 2. "Most" do logiki serwera
-        AdminPanelController controller = loader.getController();
-//        ChatServer server = ChatServer.getInstance();
-//        if (server != null) {
-//            controller.init(server.getClientManager());
-//        } else {
-//            System.err.println("SERVER IS NOT RUNNING! The admin panel cannot connect to the server logic.");
-//            // Można tu wyświetlić okno błędu
-//        }
-        adminClient.setListener(this);/
-        adminClient.connect();
-
-
-        // 3. Ustawienie sceny i zastosowanie motywu
         Scene scene = new Scene(root, 800, 600);
-
-//        scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("admin-styles.css")).toExternalForm());
-
         primaryStage.setTitle("Admin Panel - Whispr");
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -69,14 +103,39 @@ public class AdminApplication extends Application implements AdminClientListener
 
     @Override
     public void onSessionReady() {
-        // Na razie puste, ale zaraz to wykorzystamy!
-        System.out.println("GUI: Session is ready. Ready to send login request.");
-        adminClient.sendAdminLogin(Constants.ADMIN_PASSWORD);
+        if (adminClient != null && enteredPassword != null) {
+            System.out.println("GUI: Session is ready. Sending login request.");
+            adminClient.sendAdminLogin(enteredPassword);
+        }
     }
 
     @Override
     public void onLoginResponse(boolean success, String message) {
-        // Na razie puste
-        System.out.println("GUI: Login response received. Success: " + success + ", Message: " + message);
+        System.out.println("DEBUG: onLoginResponse triggered. Success: " + success + ", Message: '" + message + "'");
+        Platform.runLater(() -> {
+            if (success) {
+//                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+//                alert.setTitle("Success");
+//                alert.setHeaderText("Login Successful");
+//                alert.setContentText(message);
+//                alert.showAndWait();
+                try {
+                    showAdminPanel();
+                } catch (Exception e) {
+                    System.err.println("Error while openning admin panel.");
+                }
+            } else {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Login Failed");
+                alert.setHeaderText("Authentication Failed");
+                alert.setContentText(message);
+                alert.showAndWait();
+                promptForPassword();
+
+            }
+
+        });
+
     }
+
 }

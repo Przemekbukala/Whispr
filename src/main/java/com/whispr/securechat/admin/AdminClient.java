@@ -1,5 +1,6 @@
 package com.whispr.securechat.admin;
 
+import com.whispr.securechat.admin.gui.ServerStateListener;
 import com.whispr.securechat.client.networking.ClientNetworkManager;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.Message;
@@ -26,6 +27,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private boolean adminPublicKeySent = false;
     private SecretKey aesAdminKey;
     private AdminClientListener listener;
+    private ServerStateListener serverStateListener;
 
     public AdminClient(String serverAddress) {
         this.serverPort = Constants.SERVER_PORT;
@@ -48,7 +50,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     ":" + serverPort);
             try {
                 sendAdminPublicKey();
-                Thread.sleep(300);
+//                Thread.sleep(300);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -65,9 +67,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
         try {
             byte[] encryptedPassword = AESEncryptionUtil.encrypt(password.getBytes(), this.aesAdminKey);
-
             String payload = RSAEncryptionUtil.encodeToString(encryptedPassword);
-
             Message loginMessage = new Message(
                     MessageType.ADMIN_LOGIN,
                     "admin",
@@ -87,6 +87,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     @Override
     public void onMessageReceived(Message message) {
         MessageType messageType = message.getType();
+        System.out.println("DEBUG: Client received message of type: " + messageType);
 
         switch (messageType) {
             case PUBLIC_KEY_EXCHANGE:
@@ -106,8 +107,11 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     System.out.println("AdminClient: AES encrypted key sent to server.");
 
                 } catch (Exception e) {
-                    System.err.println("Error during public key exchange: " + e.getMessage());
-                    throw new RuntimeException(e);
+                    System.err.println("Critical error during key exchange: " + e.getMessage());
+                    if (listener != null) {
+                        // Notify the GUI about the failure instead of crashing the thread
+                        listener.onLoginResponse(false, "A critical error occurred during key exchange. Please try again.");
+                    }
                 }
                 break;
 
@@ -120,7 +124,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     byte[] bytePayload = Base64.getDecoder().decode(encryptedPayload);
                     byte[] decryptedPayloadBytes = AESEncryptionUtil.decrypt(bytePayload, this.aesAdminKey);
                     String decryptedMessage = new String(decryptedPayloadBytes, StandardCharsets.UTF_8);
-
+                    System.out.println("DEBUG: Decrypted message content: '" + decryptedMessage + "'");
                     System.out.println("AdminClient received decrypted message: " + decryptedMessage);
 
                     if (listener == null) {
@@ -172,5 +176,9 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
     public void setListener(AdminClientListener listener) {
         this.listener = listener;
+    }
+
+    public void setServerStateListener(ServerStateListener listener) {
+        this.serverStateListener = listener;
     }
 }

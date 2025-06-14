@@ -35,7 +35,6 @@ public class ClientHandler implements Runnable {
     private SecretKey aesClientKey; // Klucz AES dla tej sesji klienta
     private PrivateKey serverRSAPrivateKey; // Prywatny klucz RSA serwera
     private boolean isAdmin = false;
-
     // Konstruktor
     public ClientHandler(Socket socket, ChatServer server, PrivateKey serverRSAPrivateKey) throws IOException {
         this.clientSocket = socket;

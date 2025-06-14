@@ -87,38 +87,67 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     @Override
     public void onMessageReceived(Message message) {
         MessageType messageType = message.getType();
-        if (messageType == PUBLIC_KEY_EXCHANGE) {
-            try {
-                String publicKeyEncoded = message.getPayload();
-                this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
-                this.aesAdminKey = AESEncryptionUtil.generateAESKey();
-                System.out.println("AdminClient: AES session key generated.");
 
-                assert this.aesAdminKey != null;
-                byte[] encryptedAesKey = RSAEncryptionUtil.encrypt(this.aesAdminKey.getEncoded(), this.serverRSAPublicKey);
+        switch (messageType) {
+            case PUBLIC_KEY_EXCHANGE:
+                try {
+                    String publicKeyEncoded = message.getPayload();
+                    this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
+                    this.aesAdminKey = AESEncryptionUtil.generateAESKey();
+                    System.out.println("AdminClient: AES session key generated.");
 
-                String payload = RSAEncryptionUtil.encodeToString(encryptedAesKey);
-                Message aesMessage = new Message(AES_KEY_EXCHANGE, "admin",
-                        "server", payload, System.currentTimeMillis());
-                networkManager.sendData(aesMessage);
-                System.out.println("AdminClient: AES encrypted key sent to server.");
+                    assert this.aesAdminKey != null;
+                    byte[] encryptedAesKey = RSAEncryptionUtil.encrypt(this.aesAdminKey.getEncoded(), this.serverRSAPublicKey);
 
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else if (messageType == SERVER_INFO) {
-            try{
-                String encryptedMessagePayload = message.getPayload();
-                byte[] bytePayload = Base64.getDecoder().decode(encryptedMessagePayload);
-                byte[] decodedPayload = AESEncryptionUtil.decrypt(bytePayload, this.aesAdminKey);
-                String decodedMessage = new String(decodedPayload, StandardCharsets.UTF_8);
+                    String payload = RSAEncryptionUtil.encodeToString(encryptedAesKey);
+                    Message aesMessage = new Message(AES_KEY_EXCHANGE, "admin",
+                            "server", payload, System.currentTimeMillis());
+                    networkManager.sendData(aesMessage);
+                    System.out.println("AdminClient: AES encrypted key sent to server.");
 
-                if (decodedMessage.equals("AES key received successfully. Session ready!")) {
-                    if (listener != null) listener.onSessionReady();
+                } catch (Exception e) {
+                    System.err.println("Error during public key exchange: " + e.getMessage());
+                    throw new RuntimeException(e);
                 }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+                break;
+
+            case SERVER_INFO:
+            case ERROR:
+                // Obsługujemy zarówno SERVER_INFO (sukces) jak i ERROR (porażka logowania).
+                // W obu przypadkach payload jest zaszyfrowany.
+                try {
+                    String encryptedPayload = message.getPayload();
+                    byte[] bytePayload = Base64.getDecoder().decode(encryptedPayload);
+                    byte[] decryptedPayloadBytes = AESEncryptionUtil.decrypt(bytePayload, this.aesAdminKey);
+                    String decryptedMessage = new String(decryptedPayloadBytes, StandardCharsets.UTF_8);
+
+                    System.out.println("AdminClient received decrypted message: " + decryptedMessage);
+
+                    if (listener == null) {
+                        System.err.println("AdminClient: Listener is not set, cannot dispatch message.");
+                        return;
+                    }
+                    // Rozróżniamy komunikaty na podstawie ich treści.
+                    if (decryptedMessage.equals("AES key received successfully. Session ready!")) {
+                        listener.onSessionReady();
+                    } else if (messageType == SERVER_INFO) {
+                        // Zakładamy, że inny SERVER_INFO to potwierdzenie udanego logowania.
+                        listener.onLoginResponse(true, decryptedMessage);
+                    } else { // messageType == ERROR
+                        listener.onLoginResponse(false, decryptedMessage);
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("Error decrypting server message: " + e.getMessage());
+                    if (listener != null) {
+                        listener.onLoginResponse(false, "Failed to decrypt server response.");
+                    }
+                }
+                break;
+
+            default:
+                System.err.println("AdminClient: Received unhandled message type: " + messageType);
+                break;
         }
     }
 

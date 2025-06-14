@@ -53,7 +53,7 @@ public class AdminApplication extends Application implements AdminClientListener
 //            System.err.println("SERVER IS NOT RUNNING! The admin panel cannot connect to the server logic.");
 //            // Można tu wyświetlić okno błędu
 //        }
-
+        adminClient.setListener(this);/
         adminClient.connect();
 
 

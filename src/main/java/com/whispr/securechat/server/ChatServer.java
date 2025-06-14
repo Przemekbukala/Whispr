@@ -9,11 +9,17 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.concurrent.ExecutorService; // Do zarządzania pulą wątków
 import java.util.concurrent.Executors;
-// Importy dla exceptionów
+
+import com.whispr.securechat.common.Message;
+import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.server.networking.ClientHandler;
 import com.whispr.securechat.database.DatabaseManager;
 import com.whispr.securechat.server.networking.ClientManager;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
 import static com.whispr.securechat.common.Constants.SERVER_PORT;
@@ -125,6 +131,9 @@ public class ChatServer {
     public static ChatServer getInstance() {
         return instance;
     }
+
+
+
 
     // dodałem tylko maina do testów
     public static void main(String[] args) throws Exception {

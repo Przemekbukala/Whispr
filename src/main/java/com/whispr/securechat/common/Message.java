@@ -1,7 +1,16 @@
 package com.whispr.securechat.common;
 
 import java.io.Serializable;
+import java.security.KeyPair;
+
 import com.google.gson.annotations.SerializedName;
+import com.whispr.securechat.security.AESEncryptionUtil;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+
+import static com.whispr.securechat.security.RSAEncryptionUtil.generateRSAKeyPair;
 
 public class Message implements Serializable {
     @SerializedName("type")
@@ -14,6 +23,8 @@ public class Message implements Serializable {
     private String payload;
     @SerializedName("timestamp")
     private long timestamp;
+    @SerializedName("getEncryptedIv")
+    private byte[] EncryptedIv;
 
     public Message(MessageType type, String sender, String recipient, String payload, long timestamp) {
         this.type = type;
@@ -22,6 +33,17 @@ public class Message implements Serializable {
         this.payload = payload;
         this.timestamp = timestamp;
     }
+
+    // durgi kosntruktor
+    public Message(MessageType type, String sender, String recipient, String payload, byte[] EncryptedIv, long timestamp) {
+        this.type = type;
+        this.sender = sender;
+        this.recipient = recipient;
+        this.payload = payload;
+        this.EncryptedIv = EncryptedIv;
+        this.timestamp = timestamp;
+    }
+
     public MessageType getType() {
         return type;
     }
@@ -32,6 +54,14 @@ public class Message implements Serializable {
 
     public String getRecipient() {
         return recipient;
+    }
+
+    public String getpayload() {
+        return payload;
+    }
+
+    public byte[] getEncryptedIv() {
+        return EncryptedIv;
     }
 
     public String getPayload() {
@@ -46,14 +76,29 @@ public class Message implements Serializable {
         this.payload = payload;
     }
 
+    public void setEncryptedIv(byte[] encryptedIv) {this.EncryptedIv = encryptedIv;}
+
+    public void setTimestamp(long type) {this.timestamp = timestamp;}
+
     @Override
     public String toString() {
-        return "Message{" +
-                "type=" + type +
-                ", sender='" + sender + '\'' +
-                ", recipient='" + recipient + '\'' +
-                ", payload='" + payload + '\'' +
-                ", timestamp=" + timestamp +
-                '}';
+        if (type == MessageType.PUBLIC_KEY_EXCHANGE) {
+            return "Message{" +
+                    "type=" + type +
+                    ", sender='" + sender + '\'' +
+                    ", timestamp=" + timestamp +
+                    '}';
+        }
+        if (EncryptedIv == null) {
+            return "Message{" +
+                    "type=" + type +
+                    ", sender='" + sender + '\'' +
+                    ", recipient='" + recipient + '\'' +
+                    ", payload=<no encrypted key+IV>," +
+                    " timestamp=" + timestamp +
+                    '}';
+        }
+      return  null;
     }
+
 }

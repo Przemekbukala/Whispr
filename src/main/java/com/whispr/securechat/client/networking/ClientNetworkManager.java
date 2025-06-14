@@ -9,6 +9,8 @@ import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
 
 import com.whispr.securechat.common.Message;
+
+import static com.whispr.securechat.common.MessageType.CHAT_MESSAGE;
 //import com.google.gson.Gson; // Przykładowa biblioteka do JSON [cite: 63]
 
 public class ClientNetworkManager implements Runnable {
@@ -43,7 +45,6 @@ public class ClientNetworkManager implements Runnable {
 
     public synchronized void  sendData(Message message) throws Exception {
         // Serializuje obiekt Message do JSON i wysyła przez socket
-
                     objectOut.writeObject(message);
                     objectOut.flush();
                     System.out.println("Klient: " + message);
@@ -56,7 +57,13 @@ public class ClientNetworkManager implements Runnable {
                 // Odczyt obiektu typu Message
                 Object obj = objectIn.readObject();
                 if (obj instanceof Message message) {
-                    System.out.println("Received message from " + message.getSender() + ": " + message.getPayload());
+                    //tymczasowe roziwazanie wyswietlania w konsoli wiadomosci
+
+                    if(message.getType()==CHAT_MESSAGE){
+                        System.out.println(message);
+                    }else {
+                        System.out.println("Odebrano wiadomość od " + message.getSender() + ": "+" typ wiadomości: "+message.getType());
+                    }
                     if (messageReceiver != null) {
                         messageReceiver.onMessageReceived(message);
                     } else {

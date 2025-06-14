@@ -56,7 +56,7 @@ public class ClientNetworkManager implements Runnable {
                 // Odczyt obiektu typu Message
                 Object obj = objectIn.readObject();
                 if (obj instanceof Message message) {
-                    System.out.println("Odebrano wiadomość od " + message.getSender() + ": " + message.getPayload());
+                    System.out.println("Received message from " + message.getSender() + ": " + message.getPayload());
                     if (messageReceiver != null) {
                         messageReceiver.onMessageReceived(message);
                     } else {

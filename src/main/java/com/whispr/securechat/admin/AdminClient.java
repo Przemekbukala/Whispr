@@ -10,11 +10,12 @@ import com.whispr.securechat.security.RSAEncryptionUtil;
 import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PublicKey;
+import java.util.Base64;
 
-import static com.whispr.securechat.common.MessageType.AES_KEY_EXCHANGE;
-import static com.whispr.securechat.common.MessageType.PUBLIC_KEY_EXCHANGE;
+import static com.whispr.securechat.common.MessageType.*;
 
 public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private ClientNetworkManager networkManager;
@@ -24,6 +25,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private PublicKey serverRSAPublicKey; // Klucz publiczny RSA serwera
     private boolean adminPublicKeySent = false;
     private SecretKey aesAdminKey;
+    private AdminClientListener listener;
 
     public AdminClient(String serverAddress) {
         this.serverPort = Constants.SERVER_PORT;
@@ -46,6 +48,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     ":" + serverPort);
             try {
                 sendAdminPublicKey();
+                Thread.sleep(300);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -55,8 +58,30 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     }
 
     public void sendAdminLogin(String password) {
+        if (aesAdminKey == null) {
+            System.err.println("AdminClient: AES key has not yet been set. The login cannot be sent.");
+            return;
+        }
 
-//        Message message = new Message();
+        try {
+            byte[] encryptedPassword = AESEncryptionUtil.encrypt(password.getBytes(), this.aesAdminKey);
+
+            String payload = RSAEncryptionUtil.encodeToString(encryptedPassword);
+
+            Message loginMessage = new Message(
+                    MessageType.ADMIN_LOGIN,
+                    "admin",
+                    "server",
+                    payload,
+                    System.currentTimeMillis()
+            );
+            networkManager.sendData(loginMessage);
+            System.out.println("AdminClient: Encrypted admin login request sent.");
+
+        } catch (Exception e) {
+            System.err.println("AdminClient: Error while encrypting or sending admin login.");
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -81,7 +106,19 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        } else if (messageType == SERVER_INFO) {
+            try{
+                String encryptedMessagePayload = message.getPayload();
+                byte[] bytePayload = Base64.getDecoder().decode(encryptedMessagePayload);
+                byte[] decodedPayload = AESEncryptionUtil.decrypt(bytePayload, this.aesAdminKey);
+                String decodedMessage = new String(decodedPayload, StandardCharsets.UTF_8);
 
+                if (decodedMessage.equals("AES key received successfully. Session ready!")) {
+                    if (listener != null) listener.onSessionReady();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -102,5 +139,9 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
         adminPublicKeySent = true;
         System.out.println("AdminClient: Admin public key sent to server.");
 
+    }
+
+    public void setListener(AdminClientListener listener) {
+        this.listener = listener;
     }
 }

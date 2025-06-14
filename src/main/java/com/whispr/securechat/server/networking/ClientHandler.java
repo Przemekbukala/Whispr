@@ -11,13 +11,16 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.security.PrivateKey;
 import java.util.Base64;
 
+import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
+import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.server.ChatServer; // Może potrzebować dostępu do ClientManager
 
@@ -31,6 +34,7 @@ public class ClientHandler implements Runnable {
     private String username;
     private SecretKey aesClientKey; // Klucz AES dla tej sesji klienta
     private PrivateKey serverRSAPrivateKey; // Prywatny klucz RSA serwera
+    private boolean isAdmin = false;
 
     // Konstruktor
     public ClientHandler(Socket socket, ChatServer server, PrivateKey serverRSAPrivateKey) throws IOException {
@@ -56,7 +60,7 @@ public class ClientHandler implements Runnable {
                             System.err.println("Error handling message!");
                             break;
                         }
-                        System.out.println(message); //TODO usunac to pozniej
+                        //System.out.println(message); //TODO usunac to pozniej
                     }
                 } catch (IOException e) {
                     System.out.println("Client " + clientSocket.getInetAddress().getHostAddress() + " disconnected or error reading: " + e.getMessage());
@@ -85,12 +89,37 @@ public class ClientHandler implements Runnable {
     }
 
     public void sendMessage(Message message) throws Exception {
-        // Wysyła wiadomość do tego klienta, szyfrując ją jeśli to wiadomość czatu
-        if (!clientSocket.isClosed() && objectOut != null) {
+        if (clientSocket.isClosed() || objectOut == null) {
+            System.err.println("Attempted to send a message to a closed socket for user: " + username);
+            return;
+        }
+
+        // "Inteligentne" szyfrowanie:
+        // Jeśli klucz AES już istnieje (sesja jest bezpieczna), szyfrujemy payload.
+        // Klucz AES jest naszym "strażnikiem" - jeśli ma wartość null, znaczy to, że
+        // wymiana kluczy jeszcze się nie zakończyła.
+        if (aesClientKey != null) {
+            String plainTextPayload = message.getPayload();
+            byte[] encryptedPayloadBytes = AESEncryptionUtil.encrypt(plainTextPayload.getBytes(), this.aesClientKey);
+            String encryptedPayloadString = Base64.getEncoder().encodeToString(encryptedPayloadBytes);
+
+            Message encryptedMessage = new Message(
+                    message.getType(),
+                    message.getSender(),
+                    message.getRecipient(),
+                    encryptedPayloadString,
+                    message.getTimestamp()
+            );
+
+            objectOut.writeObject(encryptedMessage);
+            objectOut.flush();
+
+        } else {
+            // Jeśli klucz AES nie istnieje, wysyłamy wiadomość bez szyfrowania
+            // (dotyczy to np. początkowej wymiany kluczy RSA).
             objectOut.writeObject(message);
             objectOut.flush();
         }
-        System.err.println("Attempted to send a message to a closed socket for user: " + username);
     }
 
     public String getUsername() { /* ... */
@@ -120,11 +149,11 @@ public class ClientHandler implements Runnable {
                     encodedPublicKey,
                     System.currentTimeMillis()
             );
-            objectOut.writeObject(publicKeyMessage);
-            objectOut.flush();
+            sendMessage(publicKeyMessage);
             System.out.println("Serwer wysłał swój klucz publiczny RSA do " + clientSocket.getInetAddress().getHostAddress());
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Błąd wysyłania klucza publicznego serwera do klienta");
+//            throw new RuntimeException(e);
         }
     }
 
@@ -134,21 +163,19 @@ public class ClientHandler implements Runnable {
                 sendPublicKey(server.getServerRSAPublicKey());
                 break;
             case LOGIN:
-                // Tutaj logika logowania
                 handleLogin(message);
                 break;
             case REGISTER:
-                // Tutaj logika rejestracji
                 handleRegistration(message);
                 break;
             case CHAT_MESSAGE:
-                // Tutaj logika przesyłania wiadomości
                 server.getClientManager().forwardMessage(message);
                 break;
             case AES_KEY_EXCHANGE:
-                handleAESMessage(message);
+                handleAESKeyExchange(message);
                 break;
             case ADMIN_LOGIN:
+                handleAdminLogin(message);
                 break;
             // ... inne przypadki
             default:
@@ -157,13 +184,58 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void handleAESMessage(Message message) {
+    private void handleAdminLogin(Message message) {
         try {
             String encodedPayload = message.getPayload();
             byte[] bPayload = Base64.getDecoder().decode(encodedPayload);
-            byte[] decodedPayload = RSAEncryptionUtil.decrypt(bPayload,serverRSAPrivateKey);
-            SecretKey clientKey = new SecretKeySpec(decodedPayload,"AES");
+            byte[] decodedPayload = AESEncryptionUtil.decrypt(bPayload, this.aesClientKey);
+            String decodedPassword = new String(decodedPayload, StandardCharsets.UTF_8);
+            if (decodedPassword.equals(Constants.ADMIN_PASSWORD)) {
+                this.isAdmin = true;
+                System.out.println("Admin authenticated successfully for client: " + clientSocket.getInetAddress());
+
+                Message successMessage = new Message(
+                        MessageType.SERVER_INFO,
+                        "server",
+                        "admin",
+                        "Authentication successful. Welcome, admin.",
+                        System.currentTimeMillis()
+                );
+                sendMessage(successMessage);
+            } else {
+                System.err.println("Failed admin login attempt from: " + clientSocket.getInetAddress());
+                Message failureMessage = new Message(
+                        MessageType.ERROR,
+                        "server",
+                        "admin",
+                        "Authentication failed. Invalid password.",
+                        System.currentTimeMillis()
+                );
+                sendMessage(failureMessage);
+            }
+        } catch (Exception e) {
+            System.err.println("Error during admin login process: " + e.getMessage());
+        }
+    }
+
+    private void handleAESKeyExchange(Message message) {
+        try {
+            String encodedPayload = message.getPayload();
+            byte[] bPayload = Base64.getDecoder().decode(encodedPayload);
+            byte[] decodedPayload = RSAEncryptionUtil.decrypt(bPayload, serverRSAPrivateKey);
+            SecretKey clientKey = new SecretKeySpec(decodedPayload, "AES");
             setAesClientKey(clientKey);
+
+            String recipient = message.getSender();
+
+            Message aesConfirmationMessage = new Message(
+                    MessageType.SERVER_INFO,
+                    "server",
+                    recipient,
+                    "AES key received successfully. Session ready!",
+                    System.currentTimeMillis()
+            );
+            sendMessage(aesConfirmationMessage);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -241,6 +313,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    //TODO usnac na 99%
     private void performRsaKeyExchange(Message incomingMessage) throws Exception {
         // Obsługuje wymianę kluczy RSA (np. odebranie klucza publicznego klienta)
     }

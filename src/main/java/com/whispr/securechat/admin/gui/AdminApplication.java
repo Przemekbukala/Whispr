@@ -1,6 +1,8 @@
 package com.whispr.securechat.admin.gui;
 
 import com.whispr.securechat.admin.AdminClient;
+import com.whispr.securechat.admin.AdminClientListener;
+import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.server.ChatServer;
 //import io.github.palexdev.materialfx.theming.JavaFXThemes;
 //import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
@@ -13,7 +15,9 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 
-public class AdminApplication extends Application {
+public class AdminApplication extends Application implements AdminClientListener {
+    private final AdminClient adminClient = new AdminClient("localhost");
+
     public static void main(String[] args) {
         // Ta metoda uruchomi całą aplikację JavaFX
         launch(args);
@@ -49,8 +53,9 @@ public class AdminApplication extends Application {
 //            System.err.println("SERVER IS NOT RUNNING! The admin panel cannot connect to the server logic.");
 //            // Można tu wyświetlić okno błędu
 //        }
-        AdminClient adminClient = new AdminClient("localhost");
+
         adminClient.connect();
+
 
         // 3. Ustawienie sceny i zastosowanie motywu
         Scene scene = new Scene(root, 800, 600);
@@ -60,5 +65,18 @@ public class AdminApplication extends Application {
         primaryStage.setTitle("Admin Panel - Whispr");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    @Override
+    public void onSessionReady() {
+        // Na razie puste, ale zaraz to wykorzystamy!
+        System.out.println("GUI: Session is ready. Ready to send login request.");
+        adminClient.sendAdminLogin(Constants.ADMIN_PASSWORD);
+    }
+
+    @Override
+    public void onLoginResponse(boolean success, String message) {
+        // Na razie puste
+        System.out.println("GUI: Login response received. Success: " + success + ", Message: " + message);
     }
 }

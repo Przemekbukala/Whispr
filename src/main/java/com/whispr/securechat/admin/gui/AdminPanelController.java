@@ -1,5 +1,6 @@
 package com.whispr.securechat.admin.gui;
 
+import com.whispr.securechat.admin.AdminClient;
 import com.whispr.securechat.common.User;
 import com.whispr.securechat.server.networking.ClientManager;
 import javafx.application.Platform;
@@ -12,6 +13,7 @@ import java.util.Set;
 
 public class AdminPanelController implements ServerStateListener {
 
+    private AdminClient adminClient;
     private ClientManager clientManager;
 
     @FXML
@@ -25,9 +27,9 @@ public class AdminPanelController implements ServerStateListener {
     @FXML
     private Button resetPasswordButton;
 
-    // Metoda-most, wywoływana z AdminApplication
     public void init(ClientManager clientManager) {
-        this.clientManager = clientManager;
+        this.clientManager= clientManager;
+        // Użyj nowej metody z AdminClient do zarejestrowania tego kontrolera jako słuchacza
         this.clientManager.addListener(this);
     }
 

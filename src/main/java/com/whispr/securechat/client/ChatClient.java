@@ -1,22 +1,21 @@
 package com.whispr.securechat.client;
-import javax.crypto.*;
-import javax.crypto.spec.IvParameterSpec;
+
+import javax.crypto.SecretKey;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.util.Base64;
+import java.security.KeyPair;
+import java.security.PublicKey;
 import java.util.Set;
 // Importy dla exceptionów
 import com.whispr.securechat.client.networking.ClientNetworkManager;
-import com.whispr.securechat.common.MessageType;
-import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.User;
-import static com.whispr.securechat.common.MessageType.*;
-import static com.whispr.securechat.security.RSAEncryptionUtil.*;
 
+import static com.whispr.securechat.common.MessageType.CHAT_MESSAGE;
+import static com.whispr.securechat.common.MessageType.PUBLIC_KEY_EXCHANGE;
+//  trzeba załątwic juz pełną komunikacje RSA wymiana rzeczy itp niehc to ładnie smiga i wgl
+// fajna komunikacja serwer- klient porządna tak aby na koncu tylko zosatła zrobienei frontu!!!!!!!!!!!
 
 public class ChatClient {
     private String serverAddress;
@@ -32,31 +31,34 @@ public class ChatClient {
     private ConnectionStatusListener connectionStatusListener;
     // aby uniknąc zapętlenia
     private boolean clientPublicKeySent = false;
-    private boolean clientAESKeySent = false;
 
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
         this.networkManager=null;
-
         try {
             this.rsaKeyPair=RSAEncryptionUtil.generateRSAKeyPair();
-            this.aesKey=AESEncryptionUtil.generateAESKey();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
     public static void main(String[] args) {
         ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
         try {
+            /// Sprawdzenie czy RSA -> null
+
+            System.out.println("\n"+(client.serverRSAPublicKey!=null?client.serverRSAPublicKey.getEncoded():null)+"\n");
             client.connect();
-            client.sendClientPublicRSAKey();
-            Thread.sleep(1000);
-            client.sendClientAESKey();
-            Thread.sleep(2000); // Daj czas na wymianę kluczy
-            client.sendMessage("server","przykladowa wiadomość");
+            // Time to  key exchange to complete before attempting to send messages
+            client.sendClientPublicKey();
             Thread.sleep(300);
-            client.sendMessage("server","ALA MA KOTA ALE CZY DZIALA ??!!!");
+            client.sendMessage("server","przykladowa wiadomość");
+
+
+            /// Sprawdzenie czy otrzymaliśmy RSA
+            client.disconnect();
+            System.out.println("\n"+(client.serverRSAPublicKey!=null?client.serverRSAPublicKey.getEncoded():null)+"\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -65,28 +67,32 @@ public class ChatClient {
     public void connect() throws Exception {
         this.networkManager=new ClientNetworkManager(new Socket(serverAddress, serverPort));
         this.networkManager.setMessageReceiver(this::handleIncomingMessage);
+        //analgoiczne to tego poniżej
+//        networkManager.setMessageReceiver(new ClientNetworkManager.MessageReceiver() {
+//            public void onMessageReceived(Message message) {
+//                handleIncomingMessage(message);
+//            }
+//        });
+//
         new Thread(networkManager).start(); //   pętlę run()  w ClientNetworkManager
         System.out.println("Połączono z serwerem: " + serverAddress + ":" + serverPort);
     }
 
-    public void sendMessage(String recipient, String content_to_send) throws Exception {
+    public void sendMessage(String recipient, String content) throws Exception {
         if (serverRSAPublicKey == null) {
             System.err.println("Server`s RSA public key not established.");
             return;
         }
-        IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
-        String encrypted_data = AESEncryptionUtil.encrypt(content_to_send.getBytes(), this.aesKey, IV);
         // Szyfruje i wysyła wiadomość do serwera
         Message wiadomosc_do_wyslania = new Message(
                 CHAT_MESSAGE,
                 username,
                 recipient,
-                encrypted_data,IV.getIV(),
+                content,
                 System.currentTimeMillis()
         );
         // Wątek wysyłający wiadomości do serwera
         networkManager.sendData(wiadomosc_do_wyslania);
-        System.out.println("Wysłano wiadomość: " + content_to_send);
     }
 
     public void disconnect() {
@@ -96,7 +102,15 @@ public class ChatClient {
             }
             System.out.println("Disconnected from the server.");
     }
-    private synchronized void sendClientPublicRSAKey()  throws Exception {
+    //////////////////////
+    private void initializeKeyExchange() throws Exception {
+//        // Rozpoczyna proces wymiany kluczy RSA/AES z serwerem [cite: 55]
+
+    }
+
+// raczej nie static
+//private static void sendClientPublicKey()  throws Exception {
+    private synchronized void sendClientPublicKey()  throws Exception {
         if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
             System.err.println("Client public key could not be found.");
             return;
@@ -110,43 +124,14 @@ public class ChatClient {
                 PUBLIC_KEY_EXCHANGE,
                 username,
                 "server",
-                Base64.getEncoder().encodeToString(rsaKeyPair.getPublic().getEncoded()),
+                RSAEncryptionUtil.encodeToString(rsaKeyPair.getPublic().getEncoded()),
                 System.currentTimeMillis()
         );
         networkManager.sendData(wiadomosc_do_wyslania);
         clientPublicKeySent = true;
-        System.out.println("Wysłano klucz publiczny RSA klienta.");
+    }
 
-    }
-    private synchronized void sendClientAESKey() throws Exception {
-        if (aesKey == null) {
-            System.err.println("Klucz AES jest pusty");
-            return;
-        }
-        if (serverRSAPublicKey == null) {
-            System.err.println("Server`s RSA public key not established.");
-            return;
-        }
-        if (clientAESKeySent) {
-            System.out.println("Klucz AES was already sent");
-            return;
-        }
-        byte[] aesKeyBytes = aesKey.getEncoded();
-        System.out.println("Generated AES Key (Base64): " + Base64.getEncoder().encodeToString(aesKeyBytes));
-        byte[] encryptedAesKey = encryptRSA(aesKeyBytes, serverRSAPublicKey);
-        String encryptedAesKeyBase64 = Base64.getEncoder().encodeToString(encryptedAesKey);
-        Message aesKeyMessage = new Message(
-                MessageType.AES_KEY_EXCHANGE,
-                username,
-                "server",
-                encryptedAesKeyBase64,
-                System.currentTimeMillis()
-        );
-        // Senbding message
-        networkManager.sendData(aesKeyMessage);
-        System.out.println("Wysłano zaszyfrowany klucz AES.");
-        clientAESKeySent = true;
-    }
+
 
     // Wewnętrzna klasa/interfejs do obsługi odbierania wiadomości od serwera troche to hjest myslace
     private void handleIncomingMessage(Message message) {
@@ -158,61 +143,27 @@ public class ChatClient {
                     this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
                     System.out.println("Odebrano klucz RSA serwera.");
                     // Wysylanie klucza klienta do serwera
-                    sendClientPublicRSAKey();
+                    sendClientPublicKey();
+
                 } catch (Exception e) {
                     System.err.println("Błąd podczas odbierania/dekodowania klucza RSA serwera: " + e.getMessage());
                     e.printStackTrace();
                 }
                 break;
-
-            case SERVER_INFO:
-                System.out.println("SERVER_INFO");
-            break;
             case CHAT_MESSAGE:
-               String content= decryptedPayload(message);
-                System.out.println("Odebrano zaszyfrowaną wiadomość od serwera: " + content);
+                String payload = message.getPayload();
+                System.out.println("wiadomość od serwera: "+payload);
+
+        // trzeba dodac AES key itd
                 if (messageListener != null) {
                     messageListener.onMessageReceived(message.getSender(), message.getPayload());
                 }
                 break;
-            case AES_KEY_EXCHANGE:
-                try{
-                sendClientAESKey();
-                } catch (Exception e) {
-            System.err.println("Błąd podczas wysyłania AES Key");
-            e.printStackTrace();
-        }
-        break;
             default:
                 System.out.println("Odebrano wiadomość nieobsługiwanego typu: " + message.getType());
         }
 
     }
-
-    public  String decryptedPayload(Message message)  {
-        if (this.aesKey == null) {
-            System.err.println("Brak klucza AES sesji");
-            return null;
-        }
-        byte[] ivBytes = message.getEncryptedIv();
-        if (ivBytes == null) {
-            System.err.println("Brak wektora IV w wiadomości.");
-            return null;
-        }
-        IvParameterSpec IV = new IvParameterSpec(ivBytes);
-        String decryptedPayload = null;
-        try {
-            decryptedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, IV);
-        } catch (Exception e) {
-            System.err.println("Błąd podczas deszyfrowania wiadomości AES: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-        return decryptedPayload;
-    }
-
-
-
-
 
 
     // Interfejsy dla listenerów (lub osobne pliki)
@@ -228,6 +179,9 @@ public class ChatClient {
         // Próbuje zarejestrować użytkownika
         return false;
     }
+
+
+
 
 
 // Metody do ustawiania listenerów

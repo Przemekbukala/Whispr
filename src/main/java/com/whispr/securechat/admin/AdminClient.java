@@ -1,6 +1,5 @@
 package com.whispr.securechat.admin;
 
-import com.whispr.securechat.admin.gui.ServerStateListener;
 import com.whispr.securechat.client.networking.ClientNetworkManager;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.Message;
@@ -9,6 +8,7 @@ import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +16,9 @@ import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.Base64;
 
+import static com.whispr.securechat.common.Constants.ADMIN_PASSWORD;
 import static com.whispr.securechat.common.MessageType.*;
+import static com.whispr.securechat.security.RSAEncryptionUtil.encryptRSA;
 
 public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private ClientNetworkManager networkManager;
@@ -25,9 +27,9 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private KeyPair rsaKeyPair; // Para kluczy RSA klienta
     private PublicKey serverRSAPublicKey; // Klucz publiczny RSA serwera
     private boolean adminPublicKeySent = false;
+    private boolean adminAESKeySent = false;
     private SecretKey aesAdminKey;
     private AdminClientListener listener;
-    private ServerStateListener serverStateListener;
 
     public AdminClient(String serverAddress) {
         this.serverPort = Constants.SERVER_PORT;
@@ -50,7 +52,10 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     ":" + serverPort);
             try {
                 sendAdminPublicKey();
-//                Thread.sleep(300);
+                Thread.sleep(300);
+                sendAdminAESKey();
+                Thread.sleep(300);
+                sendAdminLogin(ADMIN_PASSWORD);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -66,13 +71,15 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
         }
 
         try {
-            byte[] encryptedPassword = AESEncryptionUtil.encrypt(password.getBytes(), this.aesAdminKey);
-            String payload = RSAEncryptionUtil.encodeToString(encryptedPassword);
+            System.out.println("AdminClient: Encrypting admin login request...");
+            IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
+            String payload = AESEncryptionUtil.encrypt(password.getBytes(), this.aesAdminKey, IV);
+
             Message loginMessage = new Message(
                     MessageType.ADMIN_LOGIN,
                     "admin",
                     "server",
-                    payload,
+                    payload,IV.getIV(),
                     System.currentTimeMillis()
             );
             networkManager.sendData(loginMessage);
@@ -87,31 +94,28 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     @Override
     public void onMessageReceived(Message message) {
         MessageType messageType = message.getType();
-        System.out.println("DEBUG: Client received message of type: " + messageType);
 
         switch (messageType) {
             case PUBLIC_KEY_EXCHANGE:
                 try {
                     String publicKeyEncoded = message.getPayload();
                     this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
-                    this.aesAdminKey = AESEncryptionUtil.generateAESKey();
-                    System.out.println("AdminClient: AES session key generated.");
+                    System.out.println("Server public RSA key received.");
+                    sendAdminPublicKey(); // GENERALNIE TAM JEST Flaga wiec to nic nie robi wiec trzeba sprawdzic czy bez tego działą jak działą to usunac
 
-                    assert this.aesAdminKey != null;
-                    byte[] encryptedAesKey = RSAEncryptionUtil.encrypt(this.aesAdminKey.getEncoded(), this.serverRSAPublicKey);
-
-                    String payload = RSAEncryptionUtil.encodeToString(encryptedAesKey);
-                    Message aesMessage = new Message(AES_KEY_EXCHANGE, "admin",
-                            "server", payload, System.currentTimeMillis());
-                    networkManager.sendData(aesMessage);
-                    System.out.println("AdminClient: AES encrypted key sent to server.");
 
                 } catch (Exception e) {
-                    System.err.println("Critical error during key exchange: " + e.getMessage());
-                    if (listener != null) {
-                        // Notify the GUI about the failure instead of crashing the thread
-                        listener.onLoginResponse(false, "A critical error occurred during key exchange. Please try again.");
-                    }
+                    System.err.println("Error during public key exchange: " + e.getMessage());
+                    throw new RuntimeException(e);
+                }
+                break;
+
+            case AES_KEY_EXCHANGE:
+                try{
+                    sendAdminAESKey();  //znow tutaj flaga adminAESKeySent  jest true wiec nic nie robi bo  w domysle admin wysyła AES
+                } catch (Exception e) {
+                    System.err.println("Błąd podczas wysyłania AES Key");
+                    e.printStackTrace();
                 }
                 break;
 
@@ -120,13 +124,8 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 // Obsługujemy zarówno SERVER_INFO (sukces) jak i ERROR (porażka logowania).
                 // W obu przypadkach payload jest zaszyfrowany.
                 try {
-                    String encryptedPayload = message.getPayload();
-                    byte[] bytePayload = Base64.getDecoder().decode(encryptedPayload);
-                    byte[] decryptedPayloadBytes = AESEncryptionUtil.decrypt(bytePayload, this.aesAdminKey);
-                    String decryptedMessage = new String(decryptedPayloadBytes, StandardCharsets.UTF_8);
-                    System.out.println("DEBUG: Decrypted message content: '" + decryptedMessage + "'");
+                    String decryptedMessage=decryptedPayload(message);
                     System.out.println("AdminClient received decrypted message: " + decryptedMessage);
-
                     if (listener == null) {
                         System.err.println("AdminClient: Listener is not set, cannot dispatch message.");
                         return;
@@ -155,6 +154,65 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
         }
     }
 
+
+    // w teorii tą metode mozna włozyc do klasy Message tylko paramatry trzba dodac dodatkowe (identyczna  jak w ChatCLient)
+    public  String decryptedPayload(Message message)  {
+
+
+        if (this.aesAdminKey == null) {
+            System.err.println("Brak klucza AES sesji");
+            return null;
+        }
+        byte[] ivBytes = message.getEncryptedIv();
+        if (ivBytes == null) {
+            System.err.println("Brak wektora IV w wiadomości.");
+            return null;
+        }
+        IvParameterSpec IV = new IvParameterSpec(ivBytes);
+        String decryptedPayload = null;
+        try {
+            decryptedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesAdminKey, IV);
+        } catch (Exception e) {
+            System.err.println("Błąd podczas deszyfrowania wiadomości AES: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        return decryptedPayload;
+    }
+
+
+
+
+
+
+    private synchronized void sendAdminAESKey() throws Exception {
+        this.aesAdminKey = AESEncryptionUtil.generateAESKey();
+        System.out.println("AdminClient: AES session key generated.");
+        assert this.aesAdminKey != null;
+        byte[] encryptedAesKey = encryptRSA(this.aesAdminKey.getEncoded(), this.serverRSAPublicKey);
+  String encryptedAesKeyBase64 = Base64.getEncoder().encodeToString(encryptedAesKey);
+        Message aesKeyMessage = new Message(
+                MessageType.AES_KEY_EXCHANGE,
+                "admin",
+                "server",
+                encryptedAesKeyBase64,
+                System.currentTimeMillis()
+        );
+        System.out.println("AdminClient: AES encrypted key sent to server.");
+
+        if (serverRSAPublicKey == null) {
+            System.err.println("Server`s RSA public key not established.");
+            return;
+        }
+        if (adminAESKeySent) {
+            System.out.println("Klucz AES was already sent");
+            return;
+        }
+        // Sending the message
+        networkManager.sendData(aesKeyMessage);
+        adminAESKeySent = true;
+    }
+
     private synchronized void sendAdminPublicKey() throws Exception {
         if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
             System.err.println("Client public key could not be found.");
@@ -166,7 +224,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
         }
 
         Message message = new Message(PUBLIC_KEY_EXCHANGE, "admin",
-                "server", RSAEncryptionUtil.encodeToString(rsaKeyPair.getPublic().getEncoded()),
+                "server", Base64.getEncoder().encodeToString(rsaKeyPair.getPublic().getEncoded()),
                 System.currentTimeMillis());
         networkManager.sendData(message);
         adminPublicKeySent = true;
@@ -176,9 +234,5 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
     public void setListener(AdminClientListener listener) {
         this.listener = listener;
-    }
-
-    public void setServerStateListener(ServerStateListener listener) {
-        this.serverStateListener = listener;
     }
 }

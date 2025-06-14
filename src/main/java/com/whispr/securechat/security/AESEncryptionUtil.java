@@ -2,23 +2,15 @@ package com.whispr.securechat.security;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.Cipher;
-import java.util.Arrays;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Base64;
-
 import static com.whispr.securechat.common.Constants.AES_ALGORITHM;
-import static com.whispr.securechat.common.Constants.RSA_ALGORITHM;
-// Importy dla exceptionów
-
-
-
-// zamienic na CBC "AES/CBC/PKCS5Padding"
-// POPRAWIC TĄ linkie w RSA
 
 public class AESEncryptionUtil {
-    // Zmienne: brak zmiennych instancyjnych, metody statyczne lub instancja z kluczem AES
-    // Jeśli klucz AES jest unikalny dla każdej sesji klienta, to każda instancja ClientHandler będzie miała swój SecretKey.
-    // Jeśli chcesz mieć to jako utility static, to klucz AES będzie przekazywany do metod.
-    // Przyjmujemy na razie opcję utility statycznego, wymagającego przekazywania klucza.
     private static final int KEY_LENGTH = 256;
     public static SecretKey generateAESKey() throws Exception {
         // Tworzenie klucza AES
@@ -31,42 +23,35 @@ public class AESEncryptionUtil {
             return null;
         }
     }
+    public static IvParameterSpec  generateIVParameterSpec() throws Exception {
+        try {
+            SecureRandom random = new SecureRandom();
+            byte[] ivBytes = new byte[16];
+            random.nextBytes(ivBytes);
+            return new IvParameterSpec(ivBytes);
+        }catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-    public static byte[] encrypt(byte[] data, SecretKey aesKey) throws Exception {
+
+
+
+    public static String encrypt(byte[] data, SecretKey aesKey, IvParameterSpec iv) throws Exception {
         // Szyfrowanie danych
         Cipher  c =Cipher.getInstance(AES_ALGORITHM);
-        c.init(Cipher.ENCRYPT_MODE, aesKey);
-        byte[] encrypt_data =c.doFinal(data);
-        return encrypt_data; // Zwróci zaszyfrowane dane
+        c.init(Cipher.ENCRYPT_MODE, aesKey,iv);
+//        return ; // Zwróci zaszyfrowane dane
+        return Base64.getEncoder().encodeToString(c.doFinal(data));
     }
-
-    public static byte[] decrypt(byte[] encryptedData, SecretKey aesKey) throws Exception {
+    public static String decrypt(String encryptedData, SecretKey aesKey, IvParameterSpec iv2) throws Exception {
         // Deszyfrowanie danych
         Cipher  c =Cipher.getInstance(AES_ALGORITHM);
-        c.init(Cipher.DECRYPT_MODE, aesKey);
-        byte[] decrypt_data =c.doFinal(encryptedData);
-//        System.out.println(new String(decrypt_data));  // zwraca prawdiłowy odkodowany text.
-        return decrypt_data; // Zwróci odszyfrowane dane
-
-    }
-
-
-
-    public static void main (String[] args) {
-        try{
-            SecretKey secretKey = generateAESKey();
-            String secret_key = Base64.getEncoder().encodeToString(secretKey.getEncoded());
-
-            System.out.println("Secret Key: " + secret_key);
-
-            String testowy_string=new String("testowanie działanai encrypcji");
-            byte[] encypted_data= encrypt(testowy_string.getBytes(),secretKey);
-            byte[] decrepted_data=decrypt(encypted_data,secretKey);
-            System.out.println(new String(decrepted_data));
-
-        }catch(Exception e){
-            e.printStackTrace();
-        }
+        c.init(Cipher.DECRYPT_MODE, aesKey,iv2);
+        byte[] encryptedBytes = Base64.getDecoder().decode(encryptedData);
+        byte[] decrypt_data =c.doFinal(encryptedBytes);
+        return new String(decrypt_data); // Zwróci odszyfrowane dane
     }
 
 }

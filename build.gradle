@@ -45,7 +45,7 @@ application {
 }
 
 // Twoje własne zadania do uruchamiania klas bez GUI - z poprawionymi ścieżkami
-tasks.register('runChatServer', JavaExec) {
+tasks.register('runServer', JavaExec) {
     group = 'Uruchomienie' // Lepsza grupa dla przejrzystości w IDE
     description = 'Uruchamia serwer czatu (bez GUI)'
     mainClass = 'com.whispr.securechat.server.ChatServer'
@@ -71,6 +71,15 @@ tasks.register('runAESEncryptionUtil', JavaExec) {
     description = 'Uruchamia test szyfrowania AES'
     mainClass = 'com.whispr.securechat.security.AESEncryptionUtil' // POPRAWIONE
     classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('runClient', JavaExec) {
+    group = "Application"
+    description = "Runs the interactive terminal client"
+    mainClass = 'com.whispr.securechat.client.ChatClient'
+    classpath = sourceSets.main.runtimeClasspath
+    // This is essential to make the terminal client interactive
+    standardInput = System.in
 }
 
 test {

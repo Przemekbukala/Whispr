@@ -62,24 +62,24 @@ public class ClientNetworkManager implements Runnable {
                     if(message.getType()==CHAT_MESSAGE){
                         System.out.println(message);
                     }else {
-                        System.out.println("Odebrano wiadomość od " + message.getSender() + ": "+" typ wiadomości: "+message.getType());
+                        System.out.println("Message was received from " + message.getSender() + ": "+" message type: "+message.getType());
                     }
                     if (messageReceiver != null) {
                         messageReceiver.onMessageReceived(message);
                     } else {
-                        System.err.println("Brak ustawionego odbiorcy wiadomości (messageReceiver == null)");
+                        System.err.println("No message recipient set (messageReceiver == null)");
                     }
 
                     // W przyszłosci tutaj trzeba dodać  przekazanie do GUI lub listenera.
 
                 } else {
-                    System.err.println("Odebrano obiekt nie będący Message: " + obj.getClass());
+                    System.err.println("A non-Message object was received: " + obj.getClass());
                 }
             }
         } catch (IOException e) {
-            System.err.println("Połączenie z serwerem zostało przerwane.");
+            System.err.println("The connection to the server was interrupted.");
         } catch (ClassNotFoundException e) {
-            System.err.println("Nieznana klasa obiektu odebranego z serwera.");
+            System.err.println("Unknown class of object received from server.");
         } finally {
             // zamyka zasoby po zakończeniu połaczenia
             close();

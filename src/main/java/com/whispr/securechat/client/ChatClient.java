@@ -3,6 +3,8 @@ package com.whispr.securechat.client;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -12,12 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.whispr.securechat.client.networking.ClientNetworkManager;
-import com.whispr.securechat.common.MessageType;
+import com.whispr.securechat.common.*;
 import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
-import com.whispr.securechat.common.Constants;
-import com.whispr.securechat.common.Message;
-import com.whispr.securechat.common.User;
 
 import static com.whispr.securechat.common.MessageType.*;
 import static com.whispr.securechat.security.RSAEncryptionUtil.*;
@@ -49,6 +48,7 @@ public class ChatClient {
         this.networkManager = null;
         this.conversationKeys = new ConcurrentHashMap<>();
         this.userPublicKeys = new ConcurrentHashMap<>();
+        this.pendingMessages = new ConcurrentHashMap<>();
 
         try {
             this.rsaKeyPair = RSAEncryptionUtil.generateRSAKeyPair();
@@ -58,17 +58,62 @@ public class ChatClient {
         }
     }
 
+    // In securechat/client/ChatClient.java
+
     public static void main(String[] args) {
         ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
         try {
+            // 1. Connect and establish a secure session with the server
             client.connect();
             client.sendClientPublicRSAKey();
-            Thread.sleep(1000);
+            Thread.sleep(500); // Give time for key exchange
             client.sendClientAESKey();
-            Thread.sleep(2000); // Daj czas na wymianę kluczy
-            client.sendMessage("server", "przykladowa wiadomość");
-            Thread.sleep(300);
-            client.sendMessage("server", "ALA MA KOTA ALE CZY DZIALA ??!!!");
+            System.out.println("Secure session with server established.");
+            Thread.sleep(500);
+
+            // 2. Interactive Login/Registration
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            while (true) {
+                System.out.println("Enter 'register' or 'login':");
+                String action = reader.readLine();
+
+                System.out.println("Enter username:");
+                String username = reader.readLine();
+                System.out.println("Enter password:");
+                String password = reader.readLine();
+
+                if ("register".equalsIgnoreCase(action)) {
+                    client.register(username, password);
+                    // In a real app, you'd wait for a success message.
+                    // For this test, we'll just try to log in next.
+                    System.out.println("Registration request sent. Please restart and log in.");
+                    break;
+                } else if ("login".equalsIgnoreCase(action)) {
+                    client.login(username, password);
+                    // Wait for login confirmation from server via onMessageReceived
+                    break;
+                }
+            }
+
+            // 3. Chat Loop
+            System.out.println("\nEnter messages in the format 'recipient:message'. Type 'exit' to quit.");
+            while (true) {
+                String line = reader.readLine();
+                if (line == null || "exit".equalsIgnoreCase(line)) {
+                    client.disconnect();
+                    break;
+                }
+
+                String[] parts = line.split(":", 2);
+                if (parts.length == 2) {
+                    String recipient = parts[0].trim();
+                    String messageText = parts[1].trim();
+                    client.sendMessage(recipient, messageText);
+                } else {
+                    System.out.println("Invalid format. Use 'recipient:message'.");
+                }
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -147,21 +192,21 @@ public class ChatClient {
         );
         networkManager.sendData(wiadomosc_do_wyslania);
         clientPublicKeySent = true;
-        System.out.println("Wysłano klucz publiczny RSA klienta.");
+        System.out.println("The client's RSA public key was sent.");
 
     }
 
     private synchronized void sendClientAESKey() throws Exception {
         if (aesKey == null) {
-            System.err.println("Klucz AES jest pusty");
+            System.err.println("AES key is empty");
             return;
         }
         if (serverRSAPublicKey == null) {
-            System.err.println("Server`s RSA public key not established.");
+            System.err.println("Server's RSA public key not established.");
             return;
         }
         if (clientAESKeySent) {
-            System.out.println("Klucz AES was already sent");
+            System.out.println("AES key was already sent");
             return;
         }
         byte[] aesKeyBytes = aesKey.getEncoded();
@@ -177,7 +222,7 @@ public class ChatClient {
         );
         // Senbding message
         networkManager.sendData(aesKeyMessage);
-        System.out.println("Wysłano zaszyfrowany klucz AES.");
+        System.out.println("An encrypted AES key was sent.");
         clientAESKeySent = true;
     }
 
@@ -189,11 +234,11 @@ public class ChatClient {
                 try {
                     String publicKeyEncoded = message.getPayload();
                     this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
-                    System.out.println("Odebrano klucz RSA serwera.");
+                    System.out.println("The server's RSA key has been received.");
                     // Wysylanie klucza klienta do serwera
                     sendClientPublicRSAKey();
                 } catch (Exception e) {
-                    System.err.println("Błąd podczas odbierania/dekodowania klucza RSA serwera: " + e.getMessage());
+                    System.err.println("Error while receiving/decoding server's RSA key: " + e.getMessage());
                     e.printStackTrace();
                 }
                 break;
@@ -290,12 +335,12 @@ public class ChatClient {
                 try {
                     sendClientAESKey();
                 } catch (Exception e) {
-                    System.err.println("Błąd podczas wysyłania AES Key");
+                    System.err.println("Error when sending AES Key");
                     e.printStackTrace();
                 }
                 break;
             default:
-                System.out.println("Odebrano wiadomość nieobsługiwanego typu: " + message.getType());
+                System.out.println("A message of an unsupported type was received: " + message.getType());
         }
 
     }
@@ -328,14 +373,48 @@ public class ChatClient {
     }
 
     //
-    public boolean login(String username, String password) throws Exception {
-        // Próbuje zalogować użytkownika
-        return false;
+    public void login(String username, String password) throws Exception {
+        this.username = username; // Set username for the session
+        // Encode the client's CURRENT public RSA key to send with the login request
+        String publicKeyB64 = Base64.getEncoder().encodeToString(this.rsaKeyPair.getPublic().getEncoded());
+        LoginPayload payload = new LoginPayload(username, password, publicKeyB64); // Use constructor that includes the key
+        String jsonPayload = new Gson().toJson(payload);
+
+        // This part remains the same
+        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+        String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv);
+
+        Message loginMessage = new Message(
+                MessageType.LOGIN,
+                username,
+                "server",
+                encryptedPayload,
+                iv.getIV(),
+                System.currentTimeMillis()
+        );
+        networkManager.sendData(loginMessage);
     }
 
-    public boolean register(String username, String password) throws Exception {
-        // Próbuje zarejestrować użytkownika
-        return false;
+    public void register(String username, String password) throws Exception {
+        this.username = username;
+        // Encode the client's public RSA key to send during registration
+        String publicKeyB64 = Base64.getEncoder().encodeToString(this.rsaKeyPair.getPublic().getEncoded());
+        LoginPayload payload = new LoginPayload(username, password, publicKeyB64); // Assuming you add publicKey to LoginPayload
+        String jsonPayload = new Gson().toJson(payload);
+
+        // Encrypt payload with server session key
+        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+        String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv);
+
+        Message registerMessage = new Message(
+                MessageType.REGISTER,
+                username,
+                "server",
+                encryptedPayload,
+                iv.getIV(),
+                System.currentTimeMillis()
+        );
+        networkManager.sendData(registerMessage);
     }
 
 

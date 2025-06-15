@@ -22,7 +22,7 @@ public class DatabaseManager {
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "username TEXT NOT NULL UNIQUE,"
                 + "password TEXT NOT NULL,"
-                + "public_key TEXT NOT NULL"
+                + "publicKey TEXT NOT NULL"
                 + ");";
 
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
@@ -38,7 +38,7 @@ public class DatabaseManager {
     public boolean registerUser(String username, String password, String publicKey) throws Exception {
         // Dodaje nowego użytkownika do bazy danych
 //        Definicja zapytania SQL z placeholderami (?) dla bezpieczeństwa
-        String sql = "INSERT INTO users(username, password) VALUES(?,?)";
+        String sql = "INSERT INTO users(username, password, publicKey) VALUES(?,?,?)";
         String hashedPassword = PasswordHasher.hashPassword(password);
 
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
@@ -82,16 +82,39 @@ public class DatabaseManager {
         }
     }
 
-    public String getUserPublicKey(String username) throws SQLException{
-        String sql = "SELECT public_key FROM users WHERE username = ?";
+    public String getUserPublicKey(String username) throws SQLException {
+        String sql = "SELECT publicKey FROM users WHERE username = ?";
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
-        PreparedStatement preparedStatement = conn.prepareStatement(sql)){
-            preparedStatement.setString(1,username);
+             PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
+            preparedStatement.setString(1, username);
             ResultSet resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()){
-                return resultSet.getString("public_key");
+            if (resultSet.next()) {
+                return resultSet.getString("publicKey"); // CORRECT
             }
         }
         return null;
+    }
+
+    public boolean updateUserPublicKey(String username, String publicKey) {
+        String sql = "UPDATE users SET publicKey = ? WHERE username = ?";
+        try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
+             PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
+
+            preparedStatement.setString(1, publicKey);
+            preparedStatement.setString(2, username);
+
+            int affectedRows = preparedStatement.executeUpdate();
+            if (affectedRows > 0) {
+                log.info("Successfully updated public key for user: {}", username);
+                return true;
+            } else {
+                log.warn("Could not update public key. User not found: {}", username);
+                return false;
+            }
+        } catch (SQLException e) {
+            log.error("Database error during public key update for user: {}", username, e);
+            return false;
+        }
+
     }
 }

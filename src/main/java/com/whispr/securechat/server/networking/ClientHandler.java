@@ -70,9 +70,13 @@ public class ClientHandler implements Runnable {
                         System.out.println(message);
                     }
                 } catch (IOException e) {
-                    System.out.println("Client " + clientSocket.getInetAddress().getHostAddress() + " disconnected or error reading: " + e.getMessage());
-                    server.getClientManager().removeClient(clientSocket.getInetAddress().getHostAddress());
-//                    server.getClientManager().removeClient(username);
+                    // This block is now correct
+                    String clientIdentifier = (username != null) ? username : "unauthenticated client";
+                    System.err.println("Client " + clientIdentifier + " @ " + clientSocket.getInetAddress().getHostAddress() + " disconnected.");
+
+                    if (username != null) {
+                        server.getClientManager().removeClient(username);
+                    }
                     break;
                 } catch (ClassNotFoundException e) {
                     System.err.println("Received unknown object type from client " + clientSocket.getInetAddress().getHostAddress() + ": " + e.getMessage());
@@ -94,26 +98,38 @@ public class ClientHandler implements Runnable {
             }
         }
     }
-
+    //probably two layers of encrytpion
     // szyfruje i wysyła wiadomosc
-    public void sendMessage(Message message) throws Exception {
-        // Wysyła wiadomość do tego klienta, ktora nie jest zaszyfrowana więc szyfrujemy
+//    public void sendMessage(Message message) throws Exception {
+//        // Wysyła wiadomość do tego klienta, ktora nie jest zaszyfrowana więc szyfrujemy
+//
+//        if (!clientSocket.isClosed() && objectOut != null) {
+//            if (message.getType() == MessageType.CHAT_MESSAGE) {
+//                IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
+//                String contentToEncrypt = message.getPayload();
+//                String encrypted_data = AESEncryptionUtil.encrypt(contentToEncrypt.getBytes(), this.aesKey, IV);
+//                message.setPayload(encrypted_data);
+//                message.setEncryptedIv(IV.getIV());
+//                message.setTimestamp(System.currentTimeMillis());
+//            }
+//            objectOut.writeObject(message);
+//            objectOut.flush();
+//        } else {
+//            System.err.println("Attempted to send a message to a closed socket for user: " + username);
+//        }
+//
+//    }
 
+    public void sendMessage(Message message) throws Exception {
+        // Wysyła wiadomość do tego klienta
         if (!clientSocket.isClosed() && objectOut != null) {
-            if (message.getType() == MessageType.CHAT_MESSAGE) {
-                IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
-                String contentToEncrypt = message.getPayload();
-                String encrypted_data = AESEncryptionUtil.encrypt(contentToEncrypt.getBytes(), this.aesKey, IV);
-                message.setPayload(encrypted_data);
-                message.setEncryptedIv(IV.getIV());
-                message.setTimestamp(System.currentTimeMillis());
-            }
+            // REMOVED the faulty 'if (message.getType() == MessageType.CHAT_MESSAGE)' block.
+            // The server should not re-encrypt E2E messages. It's just a relay.
             objectOut.writeObject(message);
             objectOut.flush();
         } else {
             System.err.println("Attempted to send a message to a closed socket for user: " + username);
         }
-
     }
 
     public String getUsername() { /* ... */
@@ -146,9 +162,9 @@ public class ClientHandler implements Runnable {
             );
             objectOut.writeObject(publicKeyMessage);
             objectOut.flush();
-            System.out.println("Serwer wysłał swój klucz publiczny RSA do " + clientSocket.getInetAddress().getHostAddress());
+            System.out.println("The server sent its RSA public key to the " + clientSocket.getInetAddress().getHostAddress());
         } catch (IOException e) {
-            System.err.println("Błąd wysyłania klucza publicznego serwera do klienta");
+            System.err.println("Error sending server's public key to client");
         }
     }
 
@@ -199,7 +215,7 @@ public class ClientHandler implements Runnable {
             case AES_KEY_EXCHANGE:
                 try {
                     String encryptedAesKeyBase64 = message.getPayload();
-                    System.out.println("Payload otrzymany na serwerze: " + message.getPayload());
+                    System.out.println("Payload received on the server: " + message.getPayload());
                     if (!isBase64(encryptedAesKeyBase64)) {
                         throw new IllegalArgumentException("Invalid Base64 payload: " + encryptedAesKeyBase64);
                     }
@@ -211,9 +227,9 @@ public class ClientHandler implements Runnable {
                     }
 
                     this.aesKey = new SecretKeySpec(decryptedAESKeyBytes, "AES");
-                    System.out.println("Serwer odebrał i odszyfrował klucz AES od klienta: " + username);
+                    System.out.println("The server received and decrypted the AES key from the client: " + username);
                 } catch (Exception e) {
-                    System.err.println("Błąd podczas przetwarzania wiadomości AES" + e.getMessage());
+                    System.err.println("Error while processing AES messages: " + e.getMessage());
                     e.printStackTrace();
                 }
                 break;
@@ -224,12 +240,12 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void handlePublicKeyRequest(Message message) throws Exception{
+    private void handlePublicKeyRequest(Message message) throws Exception {
         String recipientUsername = message.getPayload();
         String publicKey = server.getDbManager().getUserPublicKey(recipientUsername);
 
         Message response;
-        if (publicKey != null){
+        if (publicKey != null) {
             System.out.println("Found public key for: " + recipientUsername +
                     ", sending to: " + this.username);
             String jsonResponse = String.format("{\"username\":\"%s\",\"publicKey\":\"%s\"}", recipientUsername, publicKey);
@@ -248,140 +264,105 @@ public class ClientHandler implements Runnable {
         sendMessage(response);
     }
 
-//
-//    private void processChatMessage(Message message) {
-//        try {
-//            if (aesKey == null) {
-//                throw new IllegalStateException("Brak klucza AES dla klienta.");
-//            }
-//            if (message.getEncryptedIv() == null) {
-//                throw new IllegalArgumentException("Brak wektora IV w wiadomości.");
-//            }
-//            // OdszyfrOWANIE
-//            IvParameterSpec iv = new IvParameterSpec(message.getEncryptedIv());
-//            String decryptedMessage = AESEncryptionUtil.decrypt(message.getPayload(), aesKey, iv);
-//            System.out.println("Odebrano wiadomość od klienta: " + decryptedMessage);
-//            // WIADOMOSC ktora bedzie fowodrowana
-//            Message messageToForward = new Message(
-//                    MessageType.CHAT_MESSAGE,
-//                    message.getSender(),
-//                    message.getRecipient(),
-//                    decryptedMessage,
-//                    null,
-//                    System.currentTimeMillis()
-//            );
-//            server.getClientManager().forwardMessage(messageToForward);
-//        } catch (Exception e) {
-//            System.err.println("Błąd podczas przetwarzania wiadomości CHAT_MESSAGE: " + e.getMessage());
-//            e.printStackTrace();
-//        }
-//    }
-
     private void handleLogin(Message message) {
-        String gsonPayload = message.getPayload();
-        LoginPayload loginPayload = gson.fromJson(gsonPayload, LoginPayload.class);
-
-        final String username = loginPayload.getUsername();
-        final String password = loginPayload.getPassword();
-        IvParameterSpec IV_2 = null;
-
-        String payload_to_encript;
-        String encrypted_data;
+        String username = null;
         try {
+            String decryptedPayload = decryptChatMessage(message);
+            LoginPayload loginPayload = gson.fromJson(decryptedPayload, LoginPayload.class);
+
+            username = loginPayload.getUsername();
+            final String password = loginPayload.getPassword();
+            final String publicKey = loginPayload.getPublicKey(); // Extract the public key from the payload
+
             boolean wasLoginSuccessful = server.getDbManager().verifyCredentials(username, password);
-            IV_2 = AESEncryptionUtil.generateIVParameterSpec();
-
-            payload_to_encript = null;
-            encrypted_data = null;
-
             if (wasLoginSuccessful) {
+                // If login is successful, update the user's public key in the database
+                server.getDbManager().updateUserPublicKey(username, publicKey);
+
                 this.username = username;
                 server.getClientManager().addClient(username, this);
-                payload_to_encript = "Logged successfully!";
-                encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
+
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String payloadToEncrypt = "Logged successfully!";
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
+
                 Message loginConfirmationMessage = new Message(MessageType.SERVER_INFO,
-                        "server", username, encrypted_data, IV_2.getIV(),
+                        "server", username, encryptedData, iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginConfirmationMessage);
                 server.getClientManager().broadcastUserList();
             } else {
-                payload_to_encript = "Username or password incorrect!";
-                encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String payloadToEncrypt = "Username or password incorrect!";
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
 
                 Message loginRejectionMessage = new Message(MessageType.ERROR,
-                        "server", username, encrypted_data, IV_2.getIV(),
+                        "server", username, encryptedData, iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginRejectionMessage);
             }
         } catch (Exception e) {
-            payload_to_encript = "Server error during login.";
+            // This catch block will now correctly handle errors
+            System.err.println("Error during login process for user: " + username);
+            e.printStackTrace();
             try {
-                encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-
-            System.err.println("Error while logging in user: " + username);
-            Message loginErrorMessage = new Message(MessageType.ERROR,
-                    "server", username, encrypted_data, IV_2.getIV(),
-                    System.currentTimeMillis());
-            try {
+                String payloadToEncrypt = "Server error during login.";
+                IvParameterSpec errorIV = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, errorIV);
+                String recipient = (username != null) ? username : message.getSender();
+                Message loginErrorMessage = new Message(MessageType.ERROR,
+                        "server", recipient, encryptedData, errorIV.getIV(),
+                        System.currentTimeMillis());
                 sendMessage(loginErrorMessage);
             } catch (Exception ex) {
-                System.err.println("Failed to send error message: " + ex.getMessage());
+                System.err.println("Failed to send error message to client: " + ex.getMessage());
             }
-            e.printStackTrace();
         }
     }
 
     private void handleRegistration(Message message) {
-        String gsonPayload = message.getPayload();
-        LoginPayload registrationPayload = gson.fromJson(gsonPayload, LoginPayload.class);
-
-        final String username = registrationPayload.getUsername();
-        final String password = registrationPayload.getPassword();
-        final String publicKey = registrationPayload.getPublicKey();
-        IvParameterSpec IV_2 = null;
+        String username = null;
         try {
-            IV_2 = AESEncryptionUtil.generateIVParameterSpec();
-            boolean wasRegistrationSuccessful = server.getDbManager().registerUser(username, password,publicKey);
+            String decryptedPayload = decryptChatMessage(message);
+            LoginPayload registrationPayload = gson.fromJson(decryptedPayload, LoginPayload.class);
+
+            username = registrationPayload.getUsername();
+            final String password = registrationPayload.getPassword();
+            final String publicKey = registrationPayload.getPublicKey();
+
+            boolean wasRegistrationSuccessful = server.getDbManager().registerUser(username, password, publicKey);
+
+            IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
             if (wasRegistrationSuccessful) {
-                String payload_to_encript = "Registration successful";
-                String encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
-
-
+                String payloadToEncrypt = "Registration successful";
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
                 Message successfulRegistration = new Message(MessageType.SERVER_INFO,
-                        "server", username, encrypted_data, IV_2.getIV(),
+                        "server", username, encryptedData, iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(successfulRegistration);
             } else {
-                String payload_to_encript = "User with this name already exists.";
-                String encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
-
+                String payloadToEncrypt = "User with this name already exists.";
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
                 Message failureRegistration = new Message(MessageType.ERROR,
-                        "server", username, encrypted_data, IV_2.getIV(),
+                        "server", username, encryptedData, iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(failureRegistration);
             }
         } catch (Exception e) {
-            String payload_to_encript = "Server error during registration.";
-            String encrypted_data = null;
+            System.err.println("Error during user registration process: " + e.getMessage());
+            e.printStackTrace();
             try {
-                encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-
-            System.err.println("Error during user registration: " + username);
-            Message registrationErrorMessage = new Message(MessageType.ERROR,
-                    "server", username, encrypted_data, IV_2.getIV(),
-                    System.currentTimeMillis());
-            try {
+                String payloadToEncrypt = "Server error during registration.";
+                IvParameterSpec errorIV = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, errorIV);
+                String recipient = (username != null) ? username : message.getSender();
+                Message registrationErrorMessage = new Message(MessageType.ERROR,
+                        "server", recipient, encryptedData, errorIV.getIV(),
+                        System.currentTimeMillis());
                 sendMessage(registrationErrorMessage);
             } catch (Exception ex) {
-                System.err.println("Failed to send error message: " + ex.getMessage());
+                System.err.println("Failed to send error message to client: " + ex.getMessage());
             }
-            e.printStackTrace();
         }
     }
 

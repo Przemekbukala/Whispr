@@ -42,6 +42,7 @@ public class ClientHandler implements Runnable {
     private PrivateKey serverRSAPrivateKey; // Prywatny klucz RSA serwera
     private PublicKey clientRSAPublicKey;
     private boolean isAdmin = false;
+
     // Konstruktor
     public ClientHandler(Socket socket, ChatServer server, PrivateKey serverRSAPrivateKey) throws IOException {
         this.clientSocket = socket;
@@ -93,7 +94,8 @@ public class ClientHandler implements Runnable {
             }
         }
     }
-            // szyfruje i wysyła wiadomosc
+
+    // szyfruje i wysyła wiadomosc
     public void sendMessage(Message message) throws Exception {
         // Wysyła wiadomość do tego klienta, ktora nie jest zaszyfrowana więc szyfrujemy
 
@@ -131,15 +133,15 @@ public class ClientHandler implements Runnable {
     }
 
 
-   void sendPublicRSAKey(PublicKey publicKey) {
+    void sendPublicRSAKey(PublicKey publicKey) {
         try {
             PublicKey serverPublicKey = server.getServerRSAPublicKey();
-            String encodedPublicKey =  Base64.getEncoder().encodeToString(serverPublicKey.getEncoded());
+            String encodedPublicKey = Base64.getEncoder().encodeToString(serverPublicKey.getEncoded());
             Message publicKeyMessage = new Message(
                     MessageType.PUBLIC_KEY_EXCHANGE,
                     "server",
                     username,
-                    encodedPublicKey,null,
+                    encodedPublicKey, null,
                     System.currentTimeMillis()
             );
             objectOut.writeObject(publicKeyMessage);
@@ -159,16 +161,15 @@ public class ClientHandler implements Runnable {
     }
 
 
-
     private void handleMessage(Message message) throws Exception {
         switch (message.getType()) {
             case PUBLIC_KEY_EXCHANGE:
                 try {
-                    String client_RSA=message.getPayload();
-                    this.clientRSAPublicKey = RSAEncryptionUtil.decodePublicKey(client_RSA);
-                    System.out.println("Odebrano i zapisano klucz publiczny RSA od klienta: ");
+                    String clientRSA = message.getPayload();
+                    this.clientRSAPublicKey = RSAEncryptionUtil.decodePublicKey(clientRSA);
+                    System.out.println("Received and saved the RSA public key from the client: ");
                 } catch (Exception e) {
-                    System.err.println("Błąd podczas dekodowania klucza publicznego klienta: " + e.getMessage());
+                    System.err.println("Error while decoding client's public key:" + e.getMessage());
                     throw e; // Rzuć wyjątek dalej, aby obsłużyć błąd w pętli run()
                 }
                 sendPublicRSAKey(server.getServerRSAPublicKey());
@@ -182,8 +183,14 @@ public class ClientHandler implements Runnable {
                 handleRegistration(message);
                 break;
             case CHAT_MESSAGE:
-                // Tutaj logika przesyłania wiadomości
-                processChatMessage(message);
+            case E2E_SESSION_KEY_SHARE:
+                System.out.println("Forwarding an E2E messege from: " + message.getSender()
+                        + " to " + message.getRecipient());
+                server.getClientManager().forwardMessage(message);
+                break;
+//                processChatMessage(message);
+            case E2E_PUBLIC_KEY_REQUEST:
+                handlePublicKeyRequest(message);
                 break;
             case ADMIN_LOGIN:
                 handleAdminLogin(message);
@@ -217,34 +224,58 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    private void handlePublicKeyRequest(Message message) throws Exception{
+        String recipientUsername = message.getPayload();
+        String publicKey = server.getDbManager().getUserPublicKey(recipientUsername);
 
-    private void processChatMessage(Message message) {
-        try {
-            if (aesKey == null) {
-                throw new IllegalStateException("Brak klucza AES dla klienta.");
-            }
-            if (message.getEncryptedIv() == null) {
-                throw new IllegalArgumentException("Brak wektora IV w wiadomości.");
-            }
-            // OdszyfrOWANIE
-            IvParameterSpec iv = new IvParameterSpec(message.getEncryptedIv());
-            String decryptedMessage = AESEncryptionUtil.decrypt(message.getPayload(), aesKey, iv);
-            System.out.println("Odebrano wiadomość od klienta: " + decryptedMessage);
-            // WIADOMOSC ktora bedzie fowodrowana
-            Message messageToForward = new Message(
-                    MessageType.CHAT_MESSAGE,
-                    message.getSender(),
-                    message.getRecipient(),
-                    decryptedMessage,
-                    null,
-                    System.currentTimeMillis()
-            );
-            server.getClientManager().forwardMessage(messageToForward);
-        } catch (Exception e) {
-            System.err.println("Błąd podczas przetwarzania wiadomości CHAT_MESSAGE: " + e.getMessage());
-            e.printStackTrace();
+        Message response;
+        if (publicKey != null){
+            System.out.println("Found public key for: " + recipientUsername +
+                    ", sending to: " + this.username);
+            String jsonResponse = String.format("{\"username\":\"%s\",\"publicKey\":\"%s\"}", recipientUsername, publicKey);
+            response = new Message(MessageType.E2E_PUBLIC_KEY_RESPONSE, "server",
+                    this.username, jsonResponse, System.currentTimeMillis());
+
+//            response = new Message(MessageType.E2E_PUBLIC_KEY_RESPONSE,"server",
+//                    this.username, publicKey, System.currentTimeMillis());
+        } else {
+            System.out.println("Could not find public key for " + recipientUsername);
+            response = new Message(MessageType.ERROR, "server", this.username,
+                    "User not found: " + recipientUsername, System.currentTimeMillis());
         }
+
+        //TODO add encryption
+        sendMessage(response);
     }
+
+//
+//    private void processChatMessage(Message message) {
+//        try {
+//            if (aesKey == null) {
+//                throw new IllegalStateException("Brak klucza AES dla klienta.");
+//            }
+//            if (message.getEncryptedIv() == null) {
+//                throw new IllegalArgumentException("Brak wektora IV w wiadomości.");
+//            }
+//            // OdszyfrOWANIE
+//            IvParameterSpec iv = new IvParameterSpec(message.getEncryptedIv());
+//            String decryptedMessage = AESEncryptionUtil.decrypt(message.getPayload(), aesKey, iv);
+//            System.out.println("Odebrano wiadomość od klienta: " + decryptedMessage);
+//            // WIADOMOSC ktora bedzie fowodrowana
+//            Message messageToForward = new Message(
+//                    MessageType.CHAT_MESSAGE,
+//                    message.getSender(),
+//                    message.getRecipient(),
+//                    decryptedMessage,
+//                    null,
+//                    System.currentTimeMillis()
+//            );
+//            server.getClientManager().forwardMessage(messageToForward);
+//        } catch (Exception e) {
+//            System.err.println("Błąd podczas przetwarzania wiadomości CHAT_MESSAGE: " + e.getMessage());
+//            e.printStackTrace();
+//        }
+//    }
 
     private void handleLogin(Message message) {
         String gsonPayload = message.getPayload();
@@ -309,40 +340,41 @@ public class ClientHandler implements Runnable {
 
         final String username = registrationPayload.getUsername();
         final String password = registrationPayload.getPassword();
+        final String publicKey = registrationPayload.getPublicKey();
         IvParameterSpec IV_2 = null;
         try {
-             IV_2 = AESEncryptionUtil.generateIVParameterSpec();
-            boolean wasRegistrationSuccessful = server.getDbManager().registerUser(username, password);
+            IV_2 = AESEncryptionUtil.generateIVParameterSpec();
+            boolean wasRegistrationSuccessful = server.getDbManager().registerUser(username, password,publicKey);
             if (wasRegistrationSuccessful) {
-                String payload_to_encript="Registration successful";
+                String payload_to_encript = "Registration successful";
                 String encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
 
 
                 Message successfulRegistration = new Message(MessageType.SERVER_INFO,
-                        "server", username, encrypted_data,IV_2.getIV(),
+                        "server", username, encrypted_data, IV_2.getIV(),
                         System.currentTimeMillis());
                 sendMessage(successfulRegistration);
             } else {
-                String payload_to_encript="User with this name already exists.";
+                String payload_to_encript = "User with this name already exists.";
                 String encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
 
                 Message failureRegistration = new Message(MessageType.ERROR,
-                        "server", username, encrypted_data,IV_2.getIV(),
+                        "server", username, encrypted_data, IV_2.getIV(),
                         System.currentTimeMillis());
                 sendMessage(failureRegistration);
             }
         } catch (Exception e) {
-            String payload_to_encript="Server error during registration.";
-            String encrypted_data=null;
+            String payload_to_encript = "Server error during registration.";
+            String encrypted_data = null;
             try {
-                 encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
+                encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
 
             System.err.println("Error during user registration: " + username);
             Message registrationErrorMessage = new Message(MessageType.ERROR,
-                    "server", username, encrypted_data,IV_2.getIV(),
+                    "server", username, encrypted_data, IV_2.getIV(),
                     System.currentTimeMillis());
             try {
                 sendMessage(registrationErrorMessage);
@@ -360,9 +392,9 @@ public class ClientHandler implements Runnable {
             IvParameterSpec IV = new IvParameterSpec(ivBytes);
             String decodedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, IV);
 
-                IvParameterSpec IV_2 = AESEncryptionUtil.generateIVParameterSpec();
+            IvParameterSpec IV_2 = AESEncryptionUtil.generateIVParameterSpec();
             if (decodedPayload.equals(Constants.ADMIN_PASSWORD)) {
-                String payload_to_encript="Authentication successful. Welcome, admin.";
+                String payload_to_encript = "Authentication successful. Welcome, admin.";
                 String encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
                 this.isAdmin = true;
                 System.out.println("Admin authenticated successfully for client: " + clientSocket.getInetAddress());
@@ -370,7 +402,7 @@ public class ClientHandler implements Runnable {
                         MessageType.SERVER_INFO,
                         "server",
                         "admin",
-                        encrypted_data,IV_2.getIV(),
+                        encrypted_data, IV_2.getIV(),
                         System.currentTimeMillis()
                 );
                 sendMessage(successMessage);
@@ -381,7 +413,7 @@ public class ClientHandler implements Runnable {
                         MessageType.ERROR,
                         "server",
                         "admin",
-                        "Authentication failed. Invalid password.",IV_2.getIV(),
+                        "Authentication failed. Invalid password.", IV_2.getIV(),
                         System.currentTimeMillis()
                 );
                 sendMessage(failureMessage);

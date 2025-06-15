@@ -11,5 +11,9 @@ public enum MessageType {
     SERVER_INFO,
     ERROR,
     LOGOUT,
-    ADMIN_LOGIN
+    ADMIN_LOGIN,
+
+    E2E_PUBLIC_KEY_REQUEST,  // Client requests another user's public key
+    E2E_PUBLIC_KEY_RESPONSE, // Server responds with the requested public key
+    E2E_SESSION_KEY_SHARE    // Client A shares the E2E AES key with Client B
 }

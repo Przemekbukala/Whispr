@@ -21,7 +21,8 @@ public class DatabaseManager {
         String sql = "CREATE TABLE IF NOT EXISTS users ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "username TEXT NOT NULL UNIQUE,"
-                + "password TEXT NOT NULL"
+                + "password TEXT NOT NULL,"
+                + "public_key TEXT NOT NULL"
                 + ");";
 
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
@@ -34,7 +35,7 @@ public class DatabaseManager {
         }
     }
 
-    public boolean registerUser(String username, String password) throws Exception {
+    public boolean registerUser(String username, String password, String publicKey) throws Exception {
         // Dodaje nowego użytkownika do bazy danych
 //        Definicja zapytania SQL z placeholderami (?) dla bezpieczeństwa
         String sql = "INSERT INTO users(username, password) VALUES(?,?)";
@@ -44,7 +45,7 @@ public class DatabaseManager {
              PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
             preparedStatement.setString(1, username);
             preparedStatement.setString(2, hashedPassword);
-
+            preparedStatement.setString(3, publicKey);
             preparedStatement.executeUpdate();
 
             log.info("New user registered: " + username);
@@ -79,5 +80,18 @@ public class DatabaseManager {
             log.error("Database error during user verification: {}", username, e);
             return false;
         }
+    }
+
+    public String getUserPublicKey(String username) throws SQLException{
+        String sql = "SELECT public_key FROM users WHERE username = ?";
+        try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
+        PreparedStatement preparedStatement = conn.prepareStatement(sql)){
+            preparedStatement.setString(1,username);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()){
+                return resultSet.getString("public_key");
+            }
+        }
+        return null;
     }
 }

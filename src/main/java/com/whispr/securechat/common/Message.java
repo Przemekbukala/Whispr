@@ -56,9 +56,6 @@ public class Message implements Serializable {
         return recipient;
     }
 
-    public String getpayload() {
-        return payload;
-    }
 
     public byte[] getEncryptedIv() {
         return EncryptedIv;
@@ -78,7 +75,7 @@ public class Message implements Serializable {
 
     public void setEncryptedIv(byte[] encryptedIv) {this.EncryptedIv = encryptedIv;}
 
-    public void setTimestamp(long type) {this.timestamp = timestamp;}
+    public void setTimestamp(long timestamp) {this.timestamp = timestamp;}
 
     @Override
     public String toString() {

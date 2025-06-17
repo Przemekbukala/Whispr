@@ -1,23 +1,23 @@
 package com.whispr.securechat.admin;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.whispr.securechat.client.networking.ClientNetworkManager;
-import com.whispr.securechat.common.Constants;
-import com.whispr.securechat.common.LoginPayload;
-import com.whispr.securechat.common.Message;
-import com.whispr.securechat.common.MessageType;
+import com.whispr.securechat.common.*;
 import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.Base64;
 import java.util.Scanner;
+import java.util.Set;
 
 import static com.whispr.securechat.common.Constants.ADMIN_PASSWORD;
 import static com.whispr.securechat.common.MessageType.*;
@@ -55,8 +55,6 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     ":" + serverPort);
             try {
                 sendAdminPublicKey();
-                Thread.sleep(300);
-                sendAdminAESKey();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -106,7 +104,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     String publicKeyEncoded = message.getPayload();
                     this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
                     System.out.println("Server public RSA key received.");
-                    sendAdminPublicKey(); // GENERALNIE TAM JEST Flaga wiec to nic nie robi wiec trzeba sprawdzic czy bez tego działą jak działą to usunac
+                    sendAdminAESKey(); // GENERALNIE TAM JEST Flaga wiec to nic nie robi wiec trzeba sprawdzic czy bez tego działą jak działą to usunac
 
 
                 } catch (Exception e) {
@@ -116,12 +114,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 break;
 
             case AES_KEY_EXCHANGE:
-                try {
-                    sendAdminAESKey();  //znow tutaj flaga adminAESKeySent  jest true wiec nic nie robi bo  w domysle admin wysyła AES
-                } catch (Exception e) {
-                    System.err.println("Błąd podczas wysyłania AES Key");
-                    e.printStackTrace();
-                }
+                System.out.println("Server acknowledged AES key. Session should be ready.");
                 break;
 
             case SERVER_INFO:
@@ -152,9 +145,15 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     }
                 }
                 break;
+            case ADMIN_USER_LIST_UPDATE:
+                Gson gson = new Gson();
+                String decryptedPayload = decryptedPayload(message);
+                Type userSetType = new TypeToken<Set<User>>() {}.getType();
+                Set<User> users = gson.fromJson(decryptedPayload, userSetType);
 
-            default:
-                System.err.println("AdminClient: Received unhandled message type: " + messageType);
+                if (listener != null) {
+                    listener.onUserListUpdated(users);
+                }
                 break;
         }
     }
@@ -182,11 +181,21 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     }
 
     private synchronized void sendAdminAESKey() throws Exception {
+        if (adminAESKeySent) {
+            System.out.println("Klucz AES was already sent");
+            return;
+        }
+        if (serverRSAPublicKey == null) {
+            System.err.println("Server's RSA public key not established. Cannot send AES key.");
+            return;
+        }
+
         this.aesAdminKey = AESEncryptionUtil.generateAESKey();
         System.out.println("AdminClient: AES session key generated.");
         assert this.aesAdminKey != null;
         byte[] encryptedAesKey = encryptRSA(this.aesAdminKey.getEncoded(), this.serverRSAPublicKey);
         String encryptedAesKeyBase64 = Base64.getEncoder().encodeToString(encryptedAesKey);
+
         Message aesKeyMessage = new Message(
                 MessageType.AES_KEY_EXCHANGE,
                 "admin",
@@ -194,19 +203,11 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 encryptedAesKeyBase64,
                 System.currentTimeMillis()
         );
-        System.out.println("AdminClient: AES encrypted key sent to server.");
 
-        if (serverRSAPublicKey == null) {
-            System.err.println("Server`s RSA public key not established.");
-            return;
-        }
-        if (adminAESKeySent) {
-            System.out.println("Klucz AES was already sent");
-            return;
-        }
-        // Sending the message
+        // Wysyłanie wiadomości
         networkManager.sendData(aesKeyMessage);
         adminAESKeySent = true;
+        System.out.println("AdminClient: AES encrypted key sent to server.");
     }
 
     private synchronized void sendAdminPublicKey() throws Exception {
@@ -230,27 +231,27 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
     public void setListener(AdminClientListener listener) {
         this.listener = listener;
-    }
+    }}
 
-    public static void main(String[] args) throws Exception {
-        System.out.println("--- AdminClient Test ---");
-        AdminClient adminClient = new AdminClient("localhost");
-
-        // 1. Nawiąż połączenie i poczekaj na wymianę kluczy
-        adminClient.connect();
-        System.out.println("Connecting and performing key exchange...");
-        Thread.sleep(1000); // Dajmy sekundę na wymianę kluczy RSA/AES
-
-        // 2. Pobierz dane logowania z konsoli
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter admin username: ");
-        String username = scanner.nextLine();
-        System.out.print("Enter admin password: ");
-        String password = scanner.nextLine();
-        scanner.close();
-
-        // 3. Wyślij prośbę o zalogowanie
-        System.out.println("Sending login request for user: " + username);
-        adminClient.sendAdminLogin(username, password);
-    }
-}
+//    public static void main(String[] args) throws Exception {
+//        System.out.println("--- AdminClient Test ---");
+//        AdminClient adminClient = new AdminClient("localhost");
+//
+//        // 1. Nawiąż połączenie i poczekaj na wymianę kluczy
+//        adminClient.connect();
+//        System.out.println("Connecting and performing key exchange...");
+//        Thread.sleep(1000); // Dajmy sekundę na wymianę kluczy RSA/AES
+//
+//        // 2. Pobierz dane logowania z konsoli
+//        Scanner scanner = new Scanner(System.in);
+//        System.out.print("Enter admin username: ");
+//        String username = scanner.nextLine();
+//        System.out.print("Enter admin password: ");
+//        String password = scanner.nextLine();
+//        scanner.close();
+//
+//        // 3. Wyślij prośbę o zalogowanie
+//        System.out.println("Sending login request for user: " + username);
+//        adminClient.sendAdminLogin(username, password);
+//    }
+//}

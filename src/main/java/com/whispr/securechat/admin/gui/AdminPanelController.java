@@ -11,7 +11,7 @@ import javafx.scene.control.TextArea;
 
 import java.util.Set;
 
-public class AdminPanelController implements ServerStateListener {
+public class AdminPanelController {
 
     private AdminClient adminClient;
     private ClientManager clientManager;
@@ -27,22 +27,14 @@ public class AdminPanelController implements ServerStateListener {
     @FXML
     private Button resetPasswordButton;
 
-    public void init(ClientManager clientManager) {
-        this.clientManager= clientManager;
-        // Użyj nowej metody z AdminClient do zarejestrowania tego kontrolera jako słuchacza
-        this.clientManager.addListener(this);
-    }
-
-    @Override
-    public void onUserListChanged(Set<User> allOnlineUsers) {
+    public void updateUserList(Set<User> allOnlineUsers) {
         // Używamy Platform.runLater, aby bezpiecznie zaktualizować GUI z innego wątku
         Platform.runLater(() -> {
             usersListView.getItems().setAll(allOnlineUsers);
         });
     }
 
-    @Override
-    public void onNewLogMessage(String logMessage) {
+    public void appendLogMessage(String logMessage) {
         // Używamy Platform.runLater z tego samego powodu
         Platform.runLater(() -> {
             logTextArea.appendText(logMessage + "\n");

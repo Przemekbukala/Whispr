@@ -17,7 +17,8 @@ public class DatabaseManager {
     }
 
     public void initializeDatabase() {
-
+        createUsersTable();
+        createAdminsTable();
     }
 
     private void createUsersTable(){

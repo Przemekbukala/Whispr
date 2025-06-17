@@ -1,25 +1,28 @@
 package com.whispr.securechat.server.networking;
-import com.whispr.securechat.admin.gui.ServerStateListener;
-
 
 import java.security.PublicKey;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.Gson;
+import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
 import com.whispr.securechat.common.User;
+import com.whispr.securechat.security.AESEncryptionUtil;
+
+import javax.crypto.spec.IvParameterSpec;
 
 import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
 
 public class ClientManager {
     // Mapuje login użytkownika na jego ClientHandler
     private ConcurrentHashMap<String, ClientHandler> loggedInClients;
-    private final List<ServerStateListener> listeners = Collections.synchronizedList(new ArrayList<>());
+    private final Map<String, ClientHandler> loggedInAdmins;
 
     public ClientManager() {
         loggedInClients = new ConcurrentHashMap<>(MAX_CLIENTS);
-    } // Konstruktor inicjalizujący mapę
+        loggedInAdmins = new ConcurrentHashMap<>();
+    }
 
     public void addClient(String username, ClientHandler handler) {
         // Dodaje nowego zalogowanego klienta
@@ -82,22 +85,41 @@ public class ClientManager {
             onlineUsers.add(user);
         }
         return onlineUsers;
-    }
 
-    public void addListener(ServerStateListener listener) {
-        listeners.add(listener);
-    }
-
-    public void removeListener(ServerStateListener listener) {
-        listeners.remove(listener);
     }
 
     private void notifyUserListChanged() {
+        // Pobieramy listę, której potrzebujemy
         Set<User> onlineUsers = getLoggedInUsers();
-        synchronized (listeners) { //synchro bloku
-            for (ServerStateListener listener : listeners) {
-                listener.onUserListChanged(onlineUsers);
+        String jsonPayload = new Gson().toJson(onlineUsers);
+
+        // Iterujemy po adminach i wysyłamy aktualizacje (ta część jest poprawna i zostaje)
+        for (ClientHandler adminHandler : loggedInAdmins.values()) {
+            try {
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), adminHandler.getAesKey(), iv);
+
+                Message userListMessage = new Message(
+                        MessageType.ADMIN_USER_LIST_UPDATE,
+                        "server",
+                        adminHandler.getUsername(),
+                        encryptedPayload,
+                        iv.getIV(),
+                        System.currentTimeMillis()
+                );
+                adminHandler.sendMessage(userListMessage);
+            } catch (Exception e) {
+                System.err.println("Failed to send user list update to admin: " + adminHandler.getUsername());
+                e.printStackTrace();
             }
         }
+    }
+
+    public void addAdmin(String adminUsername, ClientHandler adminHandler){
+        loggedInAdmins.put(adminUsername,adminHandler);
+    }
+    public void removeAdmin(String adminUsername){
+        // Usuwa admina po wylogowaniu/rozłączeniu
+        loggedInAdmins.remove(adminUsername);
     }
 }

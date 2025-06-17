@@ -15,10 +15,12 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.PublicKey;
 import java.security.PrivateKey;
 import java.util.Base64;
+import java.util.Set;
 
 import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
+import com.whispr.securechat.common.User;
 import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.server.ChatServer; // Może potrzebować dostępu do ClientManager
@@ -71,8 +73,10 @@ public class ClientHandler implements Runnable {
                     String clientIdentifier = (username != null) ? username : "unauthenticated client";
                     System.err.println("Client " + clientIdentifier + " @ " + clientSocket.getInetAddress().getHostAddress() + " disconnected.");
 
-                    if (username != null) {
+                    if (username != null && !isAdmin) {
                         server.getClientManager().removeClient(username);
+                    } else {
+                        server.getClientManager().removeAdmin(username);
                     }
                     break;
                 } catch (ClassNotFoundException e) {
@@ -171,7 +175,6 @@ public class ClientHandler implements Runnable {
         IvParameterSpec iv = new IvParameterSpec(message.getEncryptedIv());
         return AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, iv);
     }
-
 
     private void handleMessage(Message message) throws Exception {
         switch (message.getType()) {
@@ -377,11 +380,11 @@ public class ClientHandler implements Runnable {
                 // If login is successful, update the user's public key in the database
                 log.info("Admin authentication successful for: {}", adminUsername);
 
-
                 this.isAdmin = true;
                 this.username = adminUsername;
 
                 server.getDbManager().updateAdminPublicKey(adminUsername, publicKey);
+                server.getClientManager().addAdmin(adminUsername,this);
 
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
                 String payloadToEncrypt = "Welcome admin!";
@@ -391,6 +394,21 @@ public class ClientHandler implements Runnable {
                         "server", adminUsername, encryptedData, iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginConfirmationMessage);
+
+                Set<User> userList = server.getClientManager().getLoggedInUsers();
+                String jsonPayload = new Gson().toJson(userList);
+                IvParameterSpec iv2 = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv2);
+                Message userListMessage = new Message(
+                        MessageType.ADMIN_USER_LIST_UPDATE,
+                        "server",
+                        adminUsername,
+                        encryptedPayload,
+                        iv2.getIV(),
+                        System.currentTimeMillis()
+                );
+                sendMessage(userListMessage);
+
             } else {
                 log.warn("Failed admin login attempt for username: {}", adminUsername);
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();

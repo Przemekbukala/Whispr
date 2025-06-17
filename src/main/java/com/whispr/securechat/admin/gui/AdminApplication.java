@@ -3,6 +3,7 @@ package com.whispr.securechat.admin.gui;
 import com.whispr.securechat.admin.AdminClient;
 import com.whispr.securechat.admin.AdminClientListener;
 import com.whispr.securechat.common.Constants;
+import com.whispr.securechat.common.User;
 import com.whispr.securechat.server.ChatServer;
 //import io.github.palexdev.materialfx.theming.JavaFXThemes;
 //import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
@@ -14,9 +15,12 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+import java.util.Set;
+
 
 public class AdminApplication extends Application implements AdminClientListener {
     private final AdminClient adminClient = new AdminClient("localhost");
+    private AdminPanelController controller;
 
     public static void main(String[] args) {
         // Ta metoda uruchomi całą aplikację JavaFX
@@ -45,7 +49,7 @@ public class AdminApplication extends Application implements AdminClientListener
         Parent root = loader.load();
 
         // 2. "Most" do logiki serwera
-        AdminPanelController controller = loader.getController();
+        this.controller = loader.getController();
 //        ChatServer server = ChatServer.getInstance();
 //        if (server != null) {
 //            controller.init(server.getClientManager());
@@ -78,5 +82,18 @@ public class AdminApplication extends Application implements AdminClientListener
     public void onLoginResponse(boolean success, String message) {
         // Na razie puste
         System.out.println("GUI: Login response received. Success: " + success + ", Message: " + message);
+    }
+
+    @Override
+    public void onUserListUpdated(Set<User> users) {
+        if (controller != null) {
+            // Wywołujemy publiczną metodę kontrolera, aby zaktualizował GUI
+            controller.updateUserList(users);
+        }
+    }
+
+    @Override
+    public void onNewLogMessage(String logMessage) {
+        controller.appendLogMessage(logMessage);
     }
 }

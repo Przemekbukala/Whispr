@@ -1,7 +1,9 @@
 package com.whispr.securechat.admin;
 
+import com.google.gson.Gson;
 import com.whispr.securechat.client.networking.ClientNetworkManager;
 import com.whispr.securechat.common.Constants;
+import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
 import com.whispr.securechat.security.AESEncryptionUtil;
@@ -15,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.Base64;
+import java.util.Scanner;
 
 import static com.whispr.securechat.common.Constants.ADMIN_PASSWORD;
 import static com.whispr.securechat.common.MessageType.*;
@@ -54,8 +57,6 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 sendAdminPublicKey();
                 Thread.sleep(300);
                 sendAdminAESKey();
-                Thread.sleep(300);
-                sendAdminLogin(ADMIN_PASSWORD);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -64,22 +65,26 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
         }
     }
 
-    public void sendAdminLogin(String password) {
+    public void sendAdminLogin(String username, String password) {
         if (aesAdminKey == null) {
             System.err.println("AdminClient: AES key has not yet been set. The login cannot be sent.");
             return;
         }
 
         try {
-            System.out.println("AdminClient: Encrypting admin login request...");
+            String publicKeyB64 = Base64.getEncoder().encodeToString(this.rsaKeyPair.getPublic().getEncoded());
+            LoginPayload payload = new LoginPayload(username, password, publicKeyB64); // Use constructor that includes the key
+            String jsonPayload = new Gson().toJson(payload);
+
+            // This part remains the same
             IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
-            String payload = AESEncryptionUtil.encrypt(password.getBytes(), this.aesAdminKey, IV);
+            String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesAdminKey, IV);
 
             Message loginMessage = new Message(
                     MessageType.ADMIN_LOGIN,
                     "admin",
                     "server",
-                    payload,IV.getIV(),
+                    encryptedPayload, IV.getIV(),
                     System.currentTimeMillis()
             );
             networkManager.sendData(loginMessage);
@@ -111,7 +116,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 break;
 
             case AES_KEY_EXCHANGE:
-                try{
+                try {
                     sendAdminAESKey();  //znow tutaj flaga adminAESKeySent  jest true wiec nic nie robi bo  w domysle admin wysyła AES
                 } catch (Exception e) {
                     System.err.println("Błąd podczas wysyłania AES Key");
@@ -124,7 +129,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 // Obsługujemy zarówno SERVER_INFO (sukces) jak i ERROR (porażka logowania).
                 // W obu przypadkach payload jest zaszyfrowany.
                 try {
-                    String decryptedMessage=decryptedPayload(message);
+                    String decryptedMessage = decryptedPayload(message);
                     System.out.println("AdminClient received decrypted message: " + decryptedMessage);
                     if (listener == null) {
                         System.err.println("AdminClient: Listener is not set, cannot dispatch message.");
@@ -154,11 +159,8 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
         }
     }
 
-
     // w teorii tą metode mozna włozyc do klasy Message tylko paramatry trzba dodac dodatkowe (identyczna  jak w ChatCLient)
-    public  String decryptedPayload(Message message)  {
-
-
+    public String decryptedPayload(Message message) {
         if (this.aesAdminKey == null) {
             System.err.println("Brak klucza AES sesji");
             return null;
@@ -176,21 +178,15 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             System.err.println("Błąd podczas deszyfrowania wiadomości AES: " + e.getMessage());
             throw new RuntimeException(e);
         }
-
         return decryptedPayload;
     }
-
-
-
-
-
 
     private synchronized void sendAdminAESKey() throws Exception {
         this.aesAdminKey = AESEncryptionUtil.generateAESKey();
         System.out.println("AdminClient: AES session key generated.");
         assert this.aesAdminKey != null;
         byte[] encryptedAesKey = encryptRSA(this.aesAdminKey.getEncoded(), this.serverRSAPublicKey);
-  String encryptedAesKeyBase64 = Base64.getEncoder().encodeToString(encryptedAesKey);
+        String encryptedAesKeyBase64 = Base64.getEncoder().encodeToString(encryptedAesKey);
         Message aesKeyMessage = new Message(
                 MessageType.AES_KEY_EXCHANGE,
                 "admin",
@@ -234,5 +230,27 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
     public void setListener(AdminClientListener listener) {
         this.listener = listener;
+    }
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("--- AdminClient Test ---");
+        AdminClient adminClient = new AdminClient("localhost");
+
+        // 1. Nawiąż połączenie i poczekaj na wymianę kluczy
+        adminClient.connect();
+        System.out.println("Connecting and performing key exchange...");
+        Thread.sleep(1000); // Dajmy sekundę na wymianę kluczy RSA/AES
+
+        // 2. Pobierz dane logowania z konsoli
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter admin username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter admin password: ");
+        String password = scanner.nextLine();
+        scanner.close();
+
+        // 3. Wyślij prośbę o zalogowanie
+        System.out.println("Sending login request for user: " + username);
+        adminClient.sendAdminLogin(username, password);
     }
 }

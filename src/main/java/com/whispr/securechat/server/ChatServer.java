@@ -30,7 +30,7 @@ public class ChatServer {
     private ExecutorService clientThreadPool; // Pula wątków dla ClientHandlerów
     private DatabaseManager dbManager;
     private ClientManager clientManager; // Do zarządzania połączonymi klientami
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChatServer.class);
+    public static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChatServer.class);
     private static ChatServer instance;
 
     private boolean running;

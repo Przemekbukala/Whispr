@@ -71,7 +71,7 @@ public class AdminApplication extends Application implements AdminClientListener
     public void onSessionReady() {
         // Na razie puste, ale zaraz to wykorzystamy!
         System.out.println("GUI: Session is ready. Ready to send login request.");
-        adminClient.sendAdminLogin(Constants.ADMIN_PASSWORD);
+        adminClient.sendAdminLogin("admin",Constants.ADMIN_PASSWORD);
     }
 
     @Override

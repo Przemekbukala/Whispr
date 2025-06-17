@@ -2,7 +2,6 @@ package com.whispr.securechat.server.networking;
 
 
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.net.Socket;
 //import java.io.BufferedReader; // Jeśli używasz BufferedReader/PrintWriter
 //import java.io.PrintWriter;    // Jeśli używasz BufferedReader/PrintWriter
@@ -13,22 +12,20 @@ import java.io.ObjectOutputStream;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.security.PrivateKey;
 import java.util.Base64;
 
-import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
 import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
-import com.whispr.securechat.database.DatabaseManager;
 import com.whispr.securechat.server.ChatServer; // Może potrzebować dostępu do ClientManager
 
 import static com.whispr.securechat.security.RSAEncryptionUtil.decryptRSA;
 import static com.whispr.securechat.security.RSAEncryptionUtil.isBase64;
+import static com.whispr.securechat.server.ChatServer.log;
 
 public class ClientHandler implements Runnable {
     private Socket clientSocket;
@@ -98,6 +95,8 @@ public class ClientHandler implements Runnable {
             }
         }
     }
+
+
     //probably two layers of encrytpion
     // szyfruje i wysyła wiadomosc
 //    public void sendMessage(Message message) throws Exception {
@@ -121,10 +120,7 @@ public class ClientHandler implements Runnable {
 //    }
 
     public void sendMessage(Message message) throws Exception {
-        // Wysyła wiadomość do tego klienta
         if (!clientSocket.isClosed() && objectOut != null) {
-            // REMOVED the faulty 'if (message.getType() == MessageType.CHAT_MESSAGE)' block.
-            // The server should not re-encrypt E2E messages. It's just a relay.
             objectOut.writeObject(message);
             objectOut.flush();
         } else {
@@ -367,46 +363,63 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleAdminLogin(Message message) {
+        String adminUsername = null;
         try {
+            String decryptedPayload = decryptChatMessage(message);
+            LoginPayload loginPayload = gson.fromJson(decryptedPayload, LoginPayload.class);
 
-            byte[] ivBytes = message.getEncryptedIv();
-            IvParameterSpec IV = new IvParameterSpec(ivBytes);
-            String decodedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, IV);
+            adminUsername = loginPayload.getUsername();
+            final String password = loginPayload.getPassword();
+            final String publicKey = loginPayload.getPublicKey(); // Extract the public key from the payload
 
-            IvParameterSpec IV_2 = AESEncryptionUtil.generateIVParameterSpec();
-            if (decodedPayload.equals(Constants.ADMIN_PASSWORD)) {
-                String payload_to_encript = "Authentication successful. Welcome, admin.";
-                String encrypted_data = AESEncryptionUtil.encrypt(payload_to_encript.getBytes(), this.aesKey, IV_2);
+            boolean wasLoginSuccessful = server.getDbManager().verifyAdminCredentials(adminUsername, password);
+            if (wasLoginSuccessful) {
+                // If login is successful, update the user's public key in the database
+                log.info("Admin authentication successful for: {}", adminUsername);
+
+
                 this.isAdmin = true;
-                System.out.println("Admin authenticated successfully for client: " + clientSocket.getInetAddress());
-                Message successMessage = new Message(
-                        MessageType.SERVER_INFO,
-                        "server",
-                        "admin",
-                        encrypted_data, IV_2.getIV(),
-                        System.currentTimeMillis()
-                );
-                sendMessage(successMessage);
-            } else {
+                this.username = adminUsername;
 
-                System.err.println("Failed admin login attempt from: " + clientSocket.getInetAddress());
-                Message failureMessage = new Message(
-                        MessageType.ERROR,
-                        "server",
-                        "admin",
-                        "Authentication failed. Invalid password.", IV_2.getIV(),
-                        System.currentTimeMillis()
-                );
-                sendMessage(failureMessage);
+                server.getDbManager().updateAdminPublicKey(adminUsername, publicKey);
+
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String payloadToEncrypt = "Welcome admin!";
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
+
+                Message loginConfirmationMessage = new Message(MessageType.SERVER_INFO,
+                        "server", adminUsername, encryptedData, iv.getIV(),
+                        System.currentTimeMillis());
+                sendMessage(loginConfirmationMessage);
+            } else {
+                log.warn("Failed admin login attempt for username: {}", adminUsername);
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String payloadToEncrypt = "Admin's username or password incorrect!";
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
+
+                Message loginRejectionMessage = new Message(MessageType.ERROR,
+                        "server", adminUsername, encryptedData, iv.getIV(),
+                        System.currentTimeMillis());
+                sendMessage(loginRejectionMessage);
             }
         } catch (Exception e) {
-            System.err.println("Error during admin login process: " + e.getMessage());
+            // This catch block will now correctly handle errors
+            log.error("Error during admin login process for: {}", adminUsername, e);
+            System.err.println("Error during login process for admin: " + adminUsername);
+            e.printStackTrace();
+            try {
+                String payloadToEncrypt = "Server error during admin's login.";
+                IvParameterSpec errorIV = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, errorIV);
+                String recipient = (adminUsername != null) ? adminUsername : message.getSender();
+                Message loginErrorMessage = new Message(MessageType.ERROR,
+                        "server", recipient, encryptedData, errorIV.getIV(),
+                        System.currentTimeMillis());
+                sendMessage(loginErrorMessage);
+            } catch (Exception ex) {
+                System.err.println("Failed to send error message to admin client: " + ex.getMessage());
+                log.error("Failed to send error message to admin client", ex);
+            }
         }
-    }
-
-
-    //TODO usnac na 99%
-    private void authenticateUser(Message loginMessage) throws Exception {
-        // Obsługuje logowanie/rejestrację
     }
 }

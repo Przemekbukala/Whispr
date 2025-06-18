@@ -27,6 +27,27 @@ public class AdminPanelController {
     @FXML
     private Button resetPasswordButton;
 
+    @FXML
+    private void initialize() {
+        kickUserButton.setOnAction(event -> handleKickUserButtonAction());
+    }
+
+    private void handleKickUserButtonAction() {
+        User selectedUser = usersListView.getSelectionModel().getSelectedItem();
+        if (selectedUser != null) {
+            System.out.println("Attempting to kick user: " + selectedUser.getUsername());
+            if (adminClient != null) {
+                adminClient.sendKickUserRequest(selectedUser.getUsername());
+            }
+        } else {
+            System.out.println("No user selected to kick.");
+        }
+    }
+
+    public void setAdminClient(AdminClient client) {
+        this.adminClient = client;
+    }
+
     public void updateUserList(Set<User> allOnlineUsers) {
         // Używamy Platform.runLater, aby bezpiecznie zaktualizować GUI z innego wątku
         Platform.runLater(() -> {

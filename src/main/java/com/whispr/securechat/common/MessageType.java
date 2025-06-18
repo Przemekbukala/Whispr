@@ -15,6 +15,7 @@ public enum MessageType {
     ADMIN_LOGIN,
     ADMIN_USER_LIST_UPDATE,
     ADMIN_LOG_MESSAGE,
+    ADMIN_KICK_USER,
 
     E2E_PUBLIC_KEY_REQUEST,  // Client requests another user's public key
     E2E_PUBLIC_KEY_RESPONSE, // Server responds with the requested public key

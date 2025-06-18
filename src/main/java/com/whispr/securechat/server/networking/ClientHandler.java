@@ -72,7 +72,7 @@ public class ClientHandler implements Runnable {
                     // This block is now correct
                     String clientIdentifier = (username != null) ? username : "unauthenticated client";
                     System.err.println("Client " + clientIdentifier + " @ " + clientSocket.getInetAddress().getHostAddress() + " disconnected.");
-
+                    server.getClientManager().broadcastLogToAdmins("Client '" + clientIdentifier + "' disconnected.");
                     if (username != null && !isAdmin) {
                         server.getClientManager().removeClient(username);
                     } else {
@@ -148,6 +148,9 @@ public class ClientHandler implements Runnable {
         this.aesKey = aesKey;
     }
 
+    public Socket getClientSocket() {
+        return clientSocket;
+    }
 
     void sendPublicRSAKey(PublicKey publicKey) {
         try {
@@ -247,6 +250,19 @@ public class ClientHandler implements Runnable {
                     e.printStackTrace();
                 }
                 break;
+
+            case ADMIN_KICK_USER:
+                if (this.isAdmin) {
+                    try {
+                        String usernameToKick = decryptChatMessage(message);
+                        server.getClientManager().kickUser(usernameToKick, this.username);
+                    } catch (Exception e) {
+                        System.err.println("Admin " + this.username + " failed to process kick request.");
+                        server.getClientManager().broadcastLogToAdmins("Failed to kick User '" + username);
+                        e.printStackTrace();
+                    }
+                }
+                break;
             // TU moze dodac waidomosc do klienta ze otryzmal to co chciał
             default:
                 // Co zrobić, gdy serwer otrzyma nieznany typ wiadomości?
@@ -309,6 +325,7 @@ public class ClientHandler implements Runnable {
 
                 this.username = username;
                 server.getClientManager().addClient(username, this);
+                server.getClientManager().broadcastLogToAdmins("User '" + username + "' logged in successfully.");
 
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
                 String payloadToEncrypt = "Logged successfully!";
@@ -328,6 +345,7 @@ public class ClientHandler implements Runnable {
                         "server", username, encryptedData, iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginRejectionMessage);
+                server.getClientManager().broadcastLogToAdmins("Failed login attempt for username: '" + username + "'.");
             }
         } catch (Exception e) {
             // This catch block will now correctly handle errors

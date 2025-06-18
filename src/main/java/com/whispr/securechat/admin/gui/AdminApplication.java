@@ -46,6 +46,7 @@ public class AdminApplication extends Application implements AdminClientListener
 
         // 2. "Most" do logiki serwera
         this.controller = loader.getController();
+        this.controller.setAdminClient(adminClient);
 //        ChatServer server = ChatServer.getInstance();
 //        if (server != null) {
 //            controller.init(server.getClientManager());

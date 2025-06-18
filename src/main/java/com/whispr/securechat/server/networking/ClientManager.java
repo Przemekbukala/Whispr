@@ -1,10 +1,8 @@
 package com.whispr.securechat.server.networking;
 
-import java.security.PublicKey;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.Gson;
-import com.whispr.securechat.common.LoginPayload;
 import com.whispr.securechat.common.Message;
 import com.whispr.securechat.common.MessageType;
 import com.whispr.securechat.common.User;
@@ -128,5 +126,53 @@ public class ClientManager {
     public void removeAdmin(String adminUsername){
         // Usuwa admina po wylogowaniu/rozłączeniu
         loggedInAdmins.remove(adminUsername);
+    }
+
+    public void broadcastLogToAdmins(String logMessage) {
+        for (ClientHandler adminHandler : loggedInAdmins.values()) {
+            try {
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedPayload = AESEncryptionUtil.encrypt(logMessage.getBytes(), adminHandler.getAesKey(), iv);
+
+                Message logRelayMessage = new Message(
+                        MessageType.ADMIN_LOG_MESSAGE,
+                        "server-log",
+                        adminHandler.getUsername(),
+                        encryptedPayload,
+                        iv.getIV(),
+                        System.currentTimeMillis()
+                );
+                adminHandler.sendMessage(logRelayMessage);
+            } catch (Exception e) {
+                System.err.println("Failed to send log message to admin: " + adminHandler.getUsername());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void kickUser(String usernameToKick, String adminUsername) {
+        ClientHandler handlerToKick = loggedInClients.get(usernameToKick);
+        if (handlerToKick != null) {
+            try {
+                String kickNote = "You have been kicked from the server by an administrator.";
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedNotice = AESEncryptionUtil.encrypt(kickNote.getBytes(), handlerToKick.getAesKey(), iv);
+                Message noticeMessage = new Message(
+                        MessageType.SERVER_INFO,
+                        "server",
+                        usernameToKick,
+                        encryptedNotice,
+                        iv.getIV(),
+                        System.currentTimeMillis());
+                handlerToKick.sendMessage(noticeMessage);
+                Thread.sleep(1000);
+                handlerToKick.getClientSocket().close();
+                broadcastLogToAdmins("User '" + usernameToKick + "' was kicked by admin.");
+            } catch (Exception e) {
+                System.err.println("Exception while kicking user " + usernameToKick + ": " + e.getMessage());
+            }
+        } else {
+            broadcastLogToAdmins("Admin '" + adminUsername + "' failed to kick user '" + usernameToKick + "': user not found.");
+        }
     }
 }

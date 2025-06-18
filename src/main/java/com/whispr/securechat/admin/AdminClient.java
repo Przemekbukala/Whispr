@@ -145,10 +145,23 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     }
                 }
                 break;
+
+            case ADMIN_LOG_MESSAGE:
+                if (listener != null) {
+                    try {
+                        String logMessage = decryptedPayload(message);
+                        listener.onNewLogMessage(logMessage);
+                    } catch (Exception e) {
+                        System.err.println("Failed to decrypt log message from server.");
+                    }
+                }
+                break;
+
             case ADMIN_USER_LIST_UPDATE:
                 Gson gson = new Gson();
                 String decryptedPayload = decryptedPayload(message);
-                Type userSetType = new TypeToken<Set<User>>() {}.getType();
+                Type userSetType = new TypeToken<Set<User>>() {
+                }.getType();
                 Set<User> users = gson.fromJson(decryptedPayload, userSetType);
                 System.out.println("ADMIN_CLIENT: Deserialized users: " + users.size()); // DODAJ TĘ LINIĘ
 
@@ -156,6 +169,30 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     listener.onUserListUpdated(users);
                 }
                 break;
+        }
+    }
+
+    public void sendKickUserRequest(String usernameToKick) {
+        if (aesAdminKey == null) {
+            System.err.println("AdminClient: Cannot send kick request, session not ready.");
+            return;
+        }
+        try {
+            IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+            String encryptedPayload = AESEncryptionUtil.encrypt(usernameToKick.getBytes(), this.aesAdminKey, iv);
+
+            Message kickRequest = new Message(
+                    MessageType.ADMIN_KICK_USER,
+                    "admin",
+                    "server",
+                    encryptedPayload,
+                    iv.getIV(),
+                    System.currentTimeMillis()
+            );
+            networkManager.sendData(kickRequest);
+        } catch (Exception e) {
+            System.err.println("Error sending kick user request for " + usernameToKick);
+            e.printStackTrace();
         }
     }
 
@@ -232,7 +269,9 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
     public void setListener(AdminClientListener listener) {
         this.listener = listener;
-    }}
+    }
+
+}
 
 //    public static void main(String[] args) throws Exception {
 //        System.out.println("--- AdminClient Test ---");

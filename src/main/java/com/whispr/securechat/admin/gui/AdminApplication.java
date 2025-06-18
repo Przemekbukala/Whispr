@@ -5,10 +5,6 @@ import com.whispr.securechat.admin.AdminClientListener;
 import com.whispr.securechat.common.Constants;
 import com.whispr.securechat.common.User;
 import com.whispr.securechat.server.ChatServer;
-//import io.github.palexdev.materialfx.theming.JavaFXThemes;
-//import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
-//import io.github.palexdev.materialfx.theming.UserAgentBuilder;
-//import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -86,6 +82,8 @@ public class AdminApplication extends Application implements AdminClientListener
 
     @Override
     public void onUserListUpdated(Set<User> users) {
+        System.out.println("ADMIN_APP: Received upadated user list: " + users.size()); // DODAJ TĘ LINIĘ
+
         if (controller != null) {
             // Wywołujemy publiczną metodę kontrolera, aby zaktualizował GUI
             controller.updateUserList(users);

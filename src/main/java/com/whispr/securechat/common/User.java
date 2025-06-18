@@ -17,5 +17,10 @@ public class User {
         this.isOnline = isOnline;
     }
 
+    @Override
+    public String toString(){
+        return this.username;
+    }
+
 
 }

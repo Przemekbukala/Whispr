@@ -150,6 +150,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 String decryptedPayload = decryptedPayload(message);
                 Type userSetType = new TypeToken<Set<User>>() {}.getType();
                 Set<User> users = gson.fromJson(decryptedPayload, userSetType);
+                System.out.println("ADMIN_CLIENT: Deserialized users: " + users.size()); // DODAJ TĘ LINIĘ
 
                 if (listener != null) {
                     listener.onUserListUpdated(users);

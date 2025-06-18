@@ -227,6 +227,21 @@ public class ClientHandler implements Runnable {
 
                     this.aesKey = new SecretKeySpec(decryptedAESKeyBytes, "AES");
                     System.out.println("The server received and decrypted the AES key from the client: " + username);
+
+                    try {
+                        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                        String payloadToEncrypt = "AES key received successfully. Session ready!";
+                        String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
+
+                        Message sessionReadyMessage = new Message(MessageType.SERVER_INFO,
+                                "server", username, encryptedData, iv.getIV(),
+                                System.currentTimeMillis());
+                        sendMessage(sessionReadyMessage);
+                        System.out.println("Sent session ready confirmation to: " + username);
+                    } catch (Exception e) {
+                        System.err.println("Error sending session ready confirmation: " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 } catch (Exception e) {
                     System.err.println("Error while processing AES messages: " + e.getMessage());
                     e.printStackTrace();
@@ -244,22 +259,36 @@ public class ClientHandler implements Runnable {
         String publicKey = server.getDbManager().getUserPublicKey(recipientUsername);
 
         Message response;
+        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+
         if (publicKey != null) {
             System.out.println("Found public key for: " + recipientUsername +
                     ", sending to: " + this.username);
             String jsonResponse = String.format("{\"username\":\"%s\",\"publicKey\":\"%s\"}", recipientUsername, publicKey);
-            response = new Message(MessageType.E2E_PUBLIC_KEY_RESPONSE, "server",
-                    this.username, jsonResponse, System.currentTimeMillis());
 
-//            response = new Message(MessageType.E2E_PUBLIC_KEY_RESPONSE,"server",
-//                    this.username, publicKey, System.currentTimeMillis());
+            String encryptedPayload = AESEncryptionUtil.encrypt(jsonResponse.getBytes(), this.aesKey, iv);
+
+            response = new Message(
+                    MessageType.E2E_PUBLIC_KEY_RESPONSE,
+                    "server",
+                    this.username,
+                    encryptedPayload,
+                    iv.getIV(),
+                    System.currentTimeMillis());
+
         } else {
             System.out.println("Could not find public key for " + recipientUsername);
-            response = new Message(MessageType.ERROR, "server", this.username,
-                    "User not found: " + recipientUsername, System.currentTimeMillis());
-        }
 
-        //TODO add encryption
+            String encryptedError = AESEncryptionUtil.encrypt(("User not found: " + recipientUsername).getBytes(), this.aesKey, iv);
+
+            response = new Message(
+                    MessageType.ERROR,
+                    "server",
+                    this.username,
+                    encryptedError,
+                    iv.getIV(),
+                    System.currentTimeMillis());
+        }
         sendMessage(response);
     }
 
@@ -384,7 +413,7 @@ public class ClientHandler implements Runnable {
                 this.username = adminUsername;
 
                 server.getDbManager().updateAdminPublicKey(adminUsername, publicKey);
-                server.getClientManager().addAdmin(adminUsername,this);
+                server.getClientManager().addAdmin(adminUsername, this);
 
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
                 String payloadToEncrypt = "Welcome admin!";

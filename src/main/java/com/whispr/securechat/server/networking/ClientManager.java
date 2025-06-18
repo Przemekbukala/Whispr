@@ -62,16 +62,23 @@ public class ClientManager {
         Set<String> usernamesSet = loggedInClients.keySet();
         Gson gson = new Gson();
         String jsonPayload = gson.toJson(usernamesSet);
-        Message listOfLoggedInUsers = new Message(MessageType.USER_LIST_UPDATE,
-                "server", "all", jsonPayload,
-                System.currentTimeMillis());
-        Collection<ClientHandler> clientHandlerSet = loggedInClients.values();
-        for (var handler : clientHandlerSet){
+
+        for (ClientHandler handler : loggedInClients.values()) {
             try {
-                handler.sendMessage(listOfLoggedInUsers);
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), handler.getAesKey(), iv);
+
+                Message userListMessage = new Message(
+                        MessageType.USER_LIST_UPDATE,
+                        "server",
+                        handler.getUsername(),
+                        encryptedPayload,
+                        iv.getIV(),
+                        System.currentTimeMillis()
+                );
+                handler.sendMessage(userListMessage);
             } catch (Exception e) {
-                System.err.println("Error during updating active users! " +
-                        e.getMessage());
+                System.err.println("Error sending encrypted user list to " + handler.getUsername() + ": " + e.getMessage());
             }
         }
 

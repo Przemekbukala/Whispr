@@ -77,25 +77,25 @@ public class Message implements Serializable {
 
     public void setTimestamp(long timestamp) {this.timestamp = timestamp;}
 
+    // Zastąp starą metodę toString() tą poniżej:
     @Override
     public String toString() {
-        if (type == MessageType.PUBLIC_KEY_EXCHANGE) {
-            return "Message{" +
-                    "type=" + type +
-                    ", sender='" + sender + '\'' +
-                    ", timestamp=" + timestamp +
-                    '}';
+        StringBuilder sb = new StringBuilder("Message{");
+        sb.append("type=").append(type);
+        sb.append(", sender='").append(sender).append('\'');
+        sb.append(", recipient='").append(recipient).append('\'');
+
+        // ukrywanie payload
+        if (payload != null && (type == MessageType.PUBLIC_KEY_EXCHANGE || type == MessageType.AES_KEY_EXCHANGE || payload.length() > 70)) {
+            sb.append(", payload=<hidden_long_payload>");
+        } else {
+            sb.append(", payload='").append(payload).append('\'');
         }
-        if (EncryptedIv == null) {
-            return "Message{" +
-                    "type=" + type +
-                    ", sender='" + sender + '\'' +
-                    ", recipient='" + recipient + '\'' +
-                    ", payload=<no encrypted key+IV>," +
-                    " timestamp=" + timestamp +
-                    '}';
-        }
-      return  null;
+
+        sb.append(", hasIV=").append(EncryptedIv != null);
+        sb.append(", timestamp=").append(timestamp);
+        sb.append('}');
+        return sb.toString();
     }
 
 }

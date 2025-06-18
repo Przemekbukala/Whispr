@@ -58,8 +58,6 @@ public class ChatClient {
         }
     }
 
-    // In securechat/client/ChatClient.java
-
     public static void main(String[] args) {
         ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
         try {
@@ -249,16 +247,17 @@ public class ChatClient {
 
             case E2E_PUBLIC_KEY_RESPONSE:
                 try {
-                    JsonObject json = gson.fromJson(message.getPayload(), JsonObject.class);
+                    String decryptedPayload = decryptedPayload(message);
+
+                    if (decryptedPayload == null){
+                        throw new Exception("Failed to decrypt payload for E2E_PUBLIC_KEY_RESPONSE");
+                    }
+
+                    JsonObject json = gson.fromJson(decryptedPayload, JsonObject.class);
                     String targetUser = json.get("username").getAsString();
                     String publicKeyString = json.get("publicKey").getAsString();
 
                     PublicKey userKey = RSAEncryptionUtil.decodePublicKey(publicKeyString);
-
-                    // In a real app, you'd need to know WHO you requested the key for.
-                    // You might need to adjust the message format to include the original target.
-                    // For now, we'll assume the last initiated session.
-
                     userPublicKeys.put(targetUser, userKey);
 
                     //weve public key - we need aes key
@@ -279,6 +278,11 @@ public class ChatClient {
 
                     networkManager.sendData(keyShareMessage);
                     System.out.println("Shared E2E session key with: " + targetUser);
+
+                    Queue<String> pending = pendingMessages.get(targetUser);
+                    while (pending != null && !pending.isEmpty()) {
+                        sendMessage(targetUser, pending.poll());
+                    }
 
                 } catch (Exception e) {
                     System.err.println("Error: " + e.getMessage());
@@ -339,33 +343,55 @@ public class ChatClient {
                     e.printStackTrace();
                 }
                 break;
+
+            case USER_LIST_UPDATE:
+                if (userListListener != null) {
+                    try {
+                        // Serwer w tym przypadku wysyła nieszyfrowany JSON z listą nazw użytkowników
+                        String jsonPayload = decryptedPayload(message);
+                        if (jsonPayload == null){
+                            System.err.println("Failed to decrypt user list update.");
+                            break;
+                        }
+                        java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<String>>() {}.getType();
+                        java.util.Set<String> usernames = gson.fromJson(jsonPayload, userSetType);
+
+                        java.util.Set<User> users = new java.util.HashSet<>();
+                        for (String name : usernames) {
+                            users.add(new User(name, true)); //zakladamy bycie online?? TODO
+                        }
+                        userListListener.onUserListUpdated(users);
+                    } catch (Exception e) {
+                        System.err.println("Error processing user list update: " + e.getMessage());
+                    }
+                }
+                break;
             default:
                 System.out.println("A message of an unsupported type was received: " + message.getType());
         }
 
     }
 
-//    public String decryptedPayload(Message message) {
-//        if (this.aesKey == null) {
-//            System.err.println("Brak klucza AES sesji");
-//            return null;
-//        }
-//        byte[] ivBytes = message.getEncryptedIv();
-//        if (ivBytes == null) {
-//            System.err.println("Brak wektora IV w wiadomości.");
-//            return null;
-//        }
-//        IvParameterSpec IV = new IvParameterSpec(ivBytes);
-//        String decryptedPayload = null;
-//        try {
-//            decryptedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, IV);
-//        } catch (Exception e) {
-//            System.err.println("Błąd podczas deszyfrowania wiadomości AES: " + e.getMessage());
-//            throw new RuntimeException(e);
-//        }
-//        return decryptedPayload;
-//    }
-//
+    public String decryptedPayload(Message message) {
+        if (this.aesKey == null) {
+            System.err.println("Brak klucza AES sesji");
+            return null;
+        }
+        byte[] ivBytes = message.getEncryptedIv();
+        if (ivBytes == null) {
+            System.err.println("Brak wektora IV w wiadomości.");
+            return null;
+        }
+        IvParameterSpec IV = new IvParameterSpec(ivBytes);
+        String decryptedPayload = null;
+        try {
+            decryptedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, IV);
+        } catch (Exception e) {
+            System.err.println("Błąd podczas deszyfrowania wiadomości AES: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+        return decryptedPayload;
+    }
 
     // Interfejsy dla listenerów (lub osobne pliki)
     public interface MessageReceivedListener {

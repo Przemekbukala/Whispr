@@ -39,7 +39,8 @@ dependencies {
 
 // Konfiguracja dla głównego zadania 'run', które uruchomi panel admina
 application {
-    mainClass = 'com.whispr.securechat.admin.gui.AdminApplication'
+//    mainClass = 'com.whispr.securechat.admin.gui.AdminApplication'
+    mainClass = 'com.whispr.securechat.client.gui.MainApplication'
     // mainModule usunięty dla uproszczenia, odkomentuj jeśli używasz module-info.java
     // mainModule = 'com.whispr.securechat'
 }

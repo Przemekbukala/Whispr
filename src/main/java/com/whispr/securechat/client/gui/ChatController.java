@@ -22,17 +22,34 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
     private ChatClient chatClient;
     private ObservableList<String> messages; // Dane dla chatMessagesListView
     private ObservableList<User> users;     // Dane dla usersListView
+    private SceneSwitcher sceneSwitcher;
 
-    public void setChatClient(ChatClient client) { /* ... */ }
+    public void setChatClient(ChatClient client) { this.chatClient = client; }
 
     @FXML
     private void handleLogoutButtonAction() {
         if (chatClient != null) {
             chatClient.logout();
         }
+    // in order to go to login scene
+        if (sceneSwitcher != null) {
+            sceneSwitcher.switchToLoginScene();
+        }
+
         // tutaj powniismy  dodac zeby powrocic do logowania
     }
+    // interfeace to change scene
+    public interface SceneSwitcher  {
+        void switchToLoginScene();
+    }
+    public void setSceneSwitcher(SceneSwitcher switcher) {
+        this.sceneSwitcher = switcher;
+    }
 
+    public interface LoginSuccessHandler {
+       public void  onLoginSuccess(ChatClient client);
+    }
+    public void setLoginSuccessHandler(LoginSuccessHandler handler) {   }
 
     @FXML
     private void initialize() {

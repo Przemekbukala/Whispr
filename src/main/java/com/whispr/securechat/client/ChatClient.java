@@ -189,7 +189,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     }
 
-    private synchronized void sendClientPublicRSAKey() throws Exception {
+    public synchronized void sendClientPublicRSAKey() throws Exception {
         if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
             System.err.println("Client public key could not be found.");
             return;
@@ -212,7 +212,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     }
 
-    private synchronized void sendClientAESKey() throws Exception {
+    public synchronized void sendClientAESKey() throws Exception {
         if (aesKey == null) {
             System.err.println("AES key is empty");
             return;

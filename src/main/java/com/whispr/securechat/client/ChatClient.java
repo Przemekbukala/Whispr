@@ -22,7 +22,7 @@ import static com.whispr.securechat.common.MessageType.*;
 import static com.whispr.securechat.security.RSAEncryptionUtil.*;
 
 
-public class ChatClient {
+public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier {
     private String serverAddress;
     private int serverPort;
     private ClientNetworkManager networkManager;
@@ -49,7 +49,7 @@ public class ChatClient {
         this.conversationKeys = new ConcurrentHashMap<>();
         this.userPublicKeys = new ConcurrentHashMap<>();
         this.pendingMessages = new ConcurrentHashMap<>();
-
+        setConnectionStatusListener(creatConnectionStatusListener());
         try {
             this.rsaKeyPair = RSAEncryptionUtil.generateRSAKeyPair();
             this.aesKey = AESEncryptionUtil.generateAESKey();
@@ -75,21 +75,27 @@ public class ChatClient {
                 System.out.println("Enter 'register' or 'login':");
                 String action = reader.readLine();
 
-                System.out.println("Enter username:");
-                String username = reader.readLine();
-                System.out.println("Enter password:");
-                String password = reader.readLine();
-
                 if ("register".equalsIgnoreCase(action)) {
+                    System.out.println("Enter username:");
+                    String username = reader.readLine();
+                    System.out.println("Enter password:");
+                    String password = reader.readLine();
                     client.register(username, password);
                     // In a real app, you'd wait for a success message.
                     // For this test, we'll just try to log in next.
                     System.out.println("Registration request sent. Please restart and log in.");
-                    break;
+                    return;  // after registration there is no need to do  // 3. Chat Loop so its better to return than break
+//                    break;
                 } else if ("login".equalsIgnoreCase(action)) {
+                    System.out.println("Enter username:");
+                    String username = reader.readLine();
+                    System.out.println("Enter password:");
+                    String password = reader.readLine();
                     client.login(username, password);
                     // Wait for login confirmation from server via onMessageReceived
                     break;
+                } else {
+                    System.out.println("Invalid action. Use 'register' or 'login'.");
                 }
             }
 
@@ -122,6 +128,13 @@ public class ChatClient {
         this.networkManager.setMessageReceiver(this::handleIncomingMessage);
         new Thread(networkManager).start(); //   pętlę run()  w ClientNetworkManager
         System.out.println("Połączono z serwerem: " + serverAddress + ":" + serverPort);
+        this.networkManager.setConnectionStatusNotifier(this);
+        // setting onConnectionStatusChanged
+        if (connectionStatusListener != null) {
+        connectionStatusListener.onConnectionStatusChanged(true);
+        } else {
+            throw new RuntimeException("ConnectionStatusListener not set.");
+        }
     }
 
     public void sendMessage(String recipient, String messageToSend) throws Exception {
@@ -169,6 +182,9 @@ public class ChatClient {
             networkManager = null;
         }
         System.out.println("Disconnected from the server.");
+        if (connectionStatusListener != null) {
+        connectionStatusListener.onConnectionStatusChanged(false);
+        }
     }
 
     private synchronized void sendClientPublicRSAKey() throws Exception {
@@ -366,6 +382,11 @@ public class ChatClient {
                     }
                 }
                 break;
+            //  adding messege type ERROR
+            case ERROR:
+                System.err.println("Error from server  " +  "tu bedzie dlaczego error albo cos  w tym stylu ");
+//                message.getPayload()
+                break;
             default:
                 System.out.println("A message of an unsupported type was received: " + message.getType());
         }
@@ -454,8 +475,30 @@ public class ChatClient {
 
     }
 
+    // this method creat ConnectionStatusListener and implements creatConnectionStatusListener.
+    private  ConnectionStatusListener creatConnectionStatusListener(){
+        return new ConnectionStatusListener() {
+            @Override
+            public void onConnectionStatusChanged(boolean connected) {
+                if(connected){
+                    System.out.println("client connected to server.");
+                }else {
+                    System.out.println("client disconnected from server.");
+                }
+            }
+        };
+    }
+    @Override
+    public void onConnectionLost(){
+        System.err.println("Connection to server lost.");
+        if (connectionStatusListener != null) {
+            connectionStatusListener.onConnectionStatusChanged(false);
+        }
+    }
+
+
     public void setConnectionStatusListener(ConnectionStatusListener listener) {
-        this.connectionStatusListener = listener;
+        this.connectionStatusListener = creatConnectionStatusListener();
 
     }
 
@@ -468,4 +511,5 @@ public class ChatClient {
         void onConnectionStatusChanged(boolean connected);
     }
 }
+
 

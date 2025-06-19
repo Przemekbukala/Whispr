@@ -73,10 +73,12 @@ public class ClientHandler implements Runnable {
                     String clientIdentifier = (username != null) ? username : "unauthenticated client";
                     System.err.println("Client " + clientIdentifier + " @ " + clientSocket.getInetAddress().getHostAddress() + " disconnected.");
                     server.getClientManager().broadcastLogToAdmins("Client '" + clientIdentifier + "' disconnected.");
-                    if (username != null && !isAdmin) {
-                        server.getClientManager().removeClient(username);
-                    } else {
-                        server.getClientManager().removeAdmin(username);
+                    if (username != null) {
+                        if (isAdmin) {
+                            server.getClientManager().removeAdmin(username);
+                        } else {
+                            server.getClientManager().removeClient(username);
+                        }
                     }
                     break;
                 } catch (ClassNotFoundException e) {
@@ -349,8 +351,12 @@ public class ClientHandler implements Runnable {
                 String payloadToEncrypt = "Logged successfully!";
                 String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
 
-                Message loginConfirmationMessage = new Message(MessageType.SERVER_INFO,
-                        "server", username, encryptedData, iv.getIV(),
+                Message loginConfirmationMessage = new Message(
+                        MessageType.LOGIN_SUCCESS,
+                        "server",
+                        username,
+                        encryptedData,
+                        iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginConfirmationMessage);
                 server.getClientManager().broadcastUserList();
@@ -359,8 +365,12 @@ public class ClientHandler implements Runnable {
                 String payloadToEncrypt = "Username or password incorrect!";
                 String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
 
-                Message loginRejectionMessage = new Message(MessageType.ERROR,
-                        "server", username, encryptedData, iv.getIV(),
+                Message loginRejectionMessage = new Message(
+                        MessageType.LOGIN_FAILURE,
+                        "server",
+                        username,
+                        encryptedData,
+                        iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginRejectionMessage);
                 server.getClientManager().broadcastLogToAdmins("Failed login attempt for username: '" + username + "'.");
@@ -374,8 +384,12 @@ public class ClientHandler implements Runnable {
                 IvParameterSpec errorIV = AESEncryptionUtil.generateIVParameterSpec();
                 String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, errorIV);
                 String recipient = (username != null) ? username : message.getSender();
-                Message loginErrorMessage = new Message(MessageType.ERROR,
-                        "server", recipient, encryptedData, errorIV.getIV(),
+                Message loginErrorMessage = new Message(
+                        MessageType.LOGIN_FAILURE,
+                        "server",
+                        recipient,
+                        encryptedData,
+                        errorIV.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginErrorMessage);
             } catch (Exception ex) {
@@ -400,15 +414,23 @@ public class ClientHandler implements Runnable {
             if (wasRegistrationSuccessful) {
                 String payloadToEncrypt = "Registration successful";
                 String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
-                Message successfulRegistration = new Message(MessageType.SERVER_INFO,
-                        "server", username, encryptedData, iv.getIV(),
+                Message successfulRegistration = new Message(
+                        MessageType.REGISTER_SUCCESS,
+                        "server",
+                        username,
+                        encryptedData,
+                        iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(successfulRegistration);
             } else {
                 String payloadToEncrypt = "User with this name already exists.";
                 String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, iv);
-                Message failureRegistration = new Message(MessageType.ERROR,
-                        "server", username, encryptedData, iv.getIV(),
+                Message failureRegistration = new Message(
+                        MessageType.REGISTER_FAILURE,
+                        "server",
+                        username,
+                        encryptedData,
+                        iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(failureRegistration);
             }
@@ -420,8 +442,12 @@ public class ClientHandler implements Runnable {
                 IvParameterSpec errorIV = AESEncryptionUtil.generateIVParameterSpec();
                 String encryptedData = AESEncryptionUtil.encrypt(payloadToEncrypt.getBytes(), this.aesKey, errorIV);
                 String recipient = (username != null) ? username : message.getSender();
-                Message registrationErrorMessage = new Message(MessageType.ERROR,
-                        "server", recipient, encryptedData, errorIV.getIV(),
+                Message registrationErrorMessage = new Message(
+                        MessageType.REGISTER_FAILURE,
+                        "server",
+                        recipient,
+                        encryptedData,
+                        errorIV.getIV(),
                         System.currentTimeMillis());
                 sendMessage(registrationErrorMessage);
             } catch (Exception ex) {

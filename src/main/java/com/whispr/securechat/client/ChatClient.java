@@ -41,6 +41,10 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private final Gson gson = new Gson();
     private Map<String, Queue<String>> pendingMessages;
     private ErrorListener errorListener;
+    private SessionStateListener sessionListener;
+    private AuthListener authListener;
+
+
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
@@ -130,7 +134,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         this.networkManager.setConnectionStatusNotifier(this);
         // setting onConnectionStatusChanged
         if (connectionStatusListener != null) {
-        connectionStatusListener.onConnectionStatusChanged(true);
+            connectionStatusListener.onConnectionStatusChanged(true);
         } else {
             throw new RuntimeException("ConnectionStatusListener not set.");
         }
@@ -182,9 +186,9 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
         System.out.println("Disconnected from the server.");
         if (connectionStatusListener != null) {
-        connectionStatusListener.onConnectionStatusChanged(false);
+            connectionStatusListener.onConnectionStatusChanged(false);
         }
-        System.out.println("User " + this.username+" disconnected from the server.");
+        System.out.println("User " + this.username + " disconnected from the server.");
 
     }
 
@@ -218,6 +222,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
         if (serverRSAPublicKey == null) {
             System.err.println("Server's RSA public key not established.");
+            if (sessionListener != null) sessionListener.onSessionFailed("Server public key is missing.");
             return;
         }
         if (clientAESKeySent) {
@@ -245,33 +250,24 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private void handleIncomingMessage(Message message) {
         switch (message.getType()) {
             case PUBLIC_KEY_EXCHANGE:
-                // Odebranie klucza RSA od serwera
                 try {
                     String publicKeyEncoded = message.getPayload();
                     this.serverRSAPublicKey = RSAEncryptionUtil.decodePublicKey(publicKeyEncoded);
                     System.out.println("The server's RSA key has been received.");
-                    // Wysylanie klucza klienta do serwera
-                    sendClientPublicRSAKey();
+                    sendClientAESKey();
                 } catch (Exception e) {
-                    System.err.println("Error while receiving/decoding server's RSA key: " + e.getMessage());
-                    e.printStackTrace();
+                    // ... obsługa błędu
+                    if (sessionListener != null) {
+                        sessionListener.onSessionFailed("Could not process server public key.");
+                    }
                 }
                 break;
-
-//            case SERVER_INFO:
-//                String serverMessage = decryptedPayload(message);
-//                if (serverMessage.equals("Logged successfully!")) {
-//                    if (loginStatusListener != null) { // loginStatusListener to nowa zmienna
-//                        loginStatusListener.onLoginSuccess();
-//                    }
-//                }
-//                break;
 
             case E2E_PUBLIC_KEY_RESPONSE:
                 try {
                     String decryptedPayload = decryptedPayload(message);
 
-                    if (decryptedPayload == null){
+                    if (decryptedPayload == null) {
                         throw new Exception("Failed to decrypt payload for E2E_PUBLIC_KEY_RESPONSE");
                     }
 
@@ -370,11 +366,12 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     try {
                         // Serwer w tym przypadku wysyła nieszyfrowany JSON z listą nazw użytkowników
                         String jsonPayload = decryptedPayload(message);
-                        if (jsonPayload == null){
+                        if (jsonPayload == null) {
                             System.err.println("Failed to decrypt user list update.");
                             break;
                         }
-                        java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<String>>() {}.getType();
+                        java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<String>>() {
+                        }.getType();
                         java.util.Set<String> usernames = gson.fromJson(jsonPayload, userSetType);
 
                         java.util.Set<User> users = new java.util.HashSet<>();
@@ -387,13 +384,39 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     }
                 }
                 break;
-            case ERROR:
+            case SERVER_INFO:
+                String serverMessage = decryptedPayload(message);
+                if (serverMessage != null && serverMessage.startsWith("AES key received successfully")) {
+                    if (sessionListener != null) {
+                        sessionListener.onSessionEstablished();
+                    }
+                }
+                // obsłuż inne komunikaty SERVER_INFO, jeśli są
+                break;
+
+            case LOGIN_SUCCESS:
+                if (authListener != null) authListener.onLoginSuccess();
+                break;
+            case LOGIN_FAILURE:
+                if (authListener != null) authListener.onLoginFailure(decryptedPayload(message));
+                break;
+            case REGISTER_SUCCESS:
+                if (authListener != null) authListener.onRegisterSuccess();
+                break;
+            case REGISTER_FAILURE:
+                if (authListener != null) authListener.onRegisterFailure(decryptedPayload(message));
+                break;
+
+            case ERROR: // Istniejący case ERROR nadal może być używany
                 String errorMessage = decryptedPayload(message);
                 System.err.println("ERROR from server: " + errorMessage);
-                if (errorListener != null) {
-                    errorListener.onErrorReceived(errorMessage);
-                } else{
-                    System.err.println("Error listener not set.");
+                // Możemy zmapować ogólne błędy na konkretne niepowodzenia
+                if (authListener != null) {
+                    if (errorMessage.contains("incorrect")) {
+                        authListener.onLoginFailure(errorMessage);
+                    } else if (errorMessage.contains("exists")) {
+                        authListener.onRegisterFailure(errorMessage);
+                    }
                 }
                 break;
             default:
@@ -471,7 +494,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         networkManager.sendData(registerMessage);
     }
 
-    public  void  logout() {
+    public void logout() {
         if (networkManager != null && this.username != null) {
             try {
                 String payload = "User " + this.username + " is logging out!!";
@@ -495,6 +518,14 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
     }
 
+    public void setSessionStateListener(SessionStateListener listener) {
+        this.sessionListener = listener;
+    }
+
+    public void setAuthListener(AuthListener listener) {
+        this.authListener = listener;
+    }
+
     // Metody do ustawiania listenerów
     public void setMessageReceivedListener(MessageReceivedListener listener) {
         this.messageListener = listener;
@@ -506,20 +537,21 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     }
 
     // this method creat ConnectionStatusListener and implements creatConnectionStatusListener.
-    private  ConnectionStatusListener creatConnectionStatusListener(){
+    private ConnectionStatusListener creatConnectionStatusListener() {
         return new ConnectionStatusListener() {
             @Override
             public void onConnectionStatusChanged(boolean connected) {
-                if(connected){
+                if (connected) {
                     System.out.println("client connected to server.");
-                }else {
+                } else {
                     System.out.println("client disconnected from server.");
                 }
             }
         };
     }
+
     @Override
-    public void onConnectionLost(){
+    public void onConnectionLost() {
         System.err.println("Connection to server lost.");
         if (connectionStatusListener != null) {
             connectionStatusListener.onConnectionStatusChanged(false);
@@ -535,23 +567,32 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     public interface UserListListener {
         void onUserListUpdated(Set<User> users);
     }
-// nowy listener dla wiadomosci typu ERROR
+
+    // nowy listener dla wiadomosci typu ERROR
     public interface ErrorListener {
         void onErrorReceived(String errorMessage);
     }
+
     public void setErrorListener(ErrorListener listener) {
         this.errorListener = listener;
     }
 
-    public interface LoginStatusListener {
-        void onLoginSuccess();
-        void onLoginFailure(String errorMessage);
+    public interface SessionStateListener {
+        void onSessionEstablished();
+
+        void onSessionFailed(String reason);
     }
 
+    public interface AuthListener {
+        void onLoginSuccess();
 
+        void onLoginFailure(String reason);
 
+        void onRegisterSuccess();
 
-    //
+        void onRegisterFailure(String reason);
+    }
+
     public interface ConnectionStatusListener {
         void onConnectionStatusChanged(boolean connected);
     }

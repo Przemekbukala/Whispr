@@ -9,7 +9,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.Label;
 import com.whispr.securechat.client.ChatClient;
 
-public class LoginController {
+public class LoginController implements ChatClient.SessionStateListener, ChatClient.AuthListener {
     @FXML
     private TextField usernameField;
     @FXML
@@ -18,81 +18,137 @@ public class LoginController {
     private Label statusLabel; // Etykieta do wyświetlania komunikatów o błędach/sukcesie
     private LoginSuccessHandler loginSuccessHandler;
     private ChatClient chatClient; // Referencja do instancji ChatClient
+    private boolean isSessionReady = false;
 
-    public void setChatClient(ChatClient client) { this.chatClient = client; }
+    public void setChatClient(ChatClient client) {
+        this.chatClient = client;
+        this.chatClient.setSessionStateListener(this);
+        this.chatClient.setAuthListener(this);
+    }
 
+    @FXML
+    private void initialize() {
+        // Połącz i rozpocznij wymianę kluczy zaraz po inicjalizacji
+        new Thread(() -> {
+            try {
+                Platform.runLater(() -> showMessage("Connecting to server...", false));
+                chatClient.connect();
+                chatClient.sendClientPublicRSAKey(); // Rozpocznij wymianę
+            } catch (Exception e) {
+                Platform.runLater(() -> showMessage("Connection failed: " + e.getMessage(), true));
+            }
+        }).start();
+    }
 
     // interface used if login is succesed
     public interface LoginSuccessHandler {
         void onLoginSuccess(ChatClient client);
     }
-    public void setLoginSuccessHandler(LoginSuccessHandler handler) {
-        this.loginSuccessHandler = handler;
-    }
 
     @FXML
     private void handleLoginButtonAction() {
-        // Logika obsługująca kliknięcie przycisku logowania
         String username = usernameField.getText();
         String password = passwordField.getText();
-        // Uruchamiamy nowy wątek, aby nie blokować interfejsu użytkownika
+
+        if (username.isBlank() || password.isBlank()) {
+            showMessage("The user name and password must not be empty.", true);
+            return;
+        }
+
+        if (!isSessionReady) {
+            showMessage("Session not established. Please wait.", true);
+            return;
+        }
+
         new Thread(() -> {
             try {
-                // Cały proces logowania (włącznie z połączeniem) wykonuje się w tle.
-                Platform.runLater(() -> showMessage("Server connecting ", false));
-                performKeyExchange();
-                Platform.runLater(() -> showMessage("Key exchange", false));
-                Platform.runLater(() -> showMessage("user logging ", false));
+                Platform.runLater(() -> showMessage("Logging in...", false));
                 chatClient.login(username, password);
-                System.out.println("User " + username + " logged in.");
-                Platform.runLater(() -> {
-                    if (loginSuccessHandler != null) {
-                        loginSuccessHandler.onLoginSuccess(chatClient);
-                    }
-                });
             } catch (Exception e) {
-                e.printStackTrace();
-                Platform.runLater(() -> showMessage("Error " + e.getMessage(), true));
+                Platform.runLater(() -> showMessage("Login error: " + e.getMessage(), true));
             }
         }).start();
     }
 
     // to make code simpler
-   private void performKeyExchange() throws Exception {
+    private void performKeyExchange() throws Exception {
         chatClient.connect();
-       chatClient.sendClientPublicRSAKey();
-       Thread.sleep(500);
-       chatClient.sendClientAESKey();
-       Thread.sleep(500);
-   }
-
-
+        chatClient.sendClientPublicRSAKey();
+        Thread.sleep(500);
+        chatClient.sendClientAESKey();
+        Thread.sleep(500);
+    }
 
     @FXML
     private void handleRegisterButtonAction() {
-        // Logika obsługująca kliknięcie przycisku rejestracji
         String username = usernameField.getText();
         String password = passwordField.getText();
+
+        if (username.isBlank() || password.isBlank()) {
+            showMessage("The user name and password must not be empty.", true);
+            return;
+        }
+
+        if (!isSessionReady) {
+            showMessage("Session not established. Please wait.", true);
+            return;
+        }
+
         new Thread(() -> {
             try {
-                Platform.runLater(() -> showMessage("Server connecting ", false));
-                chatClient.connect();
-                Platform.runLater(() -> showMessage("Key exchange", false));
-                performKeyExchange();
-                Platform.runLater(() -> showMessage("Asking server for register", false));
+                Platform.runLater(() -> showMessage("Registering...", false));
                 chatClient.register(username, password);
-                Platform.runLater(() -> showMessage("Try to log in", false));
             } catch (Exception e) {
-                e.printStackTrace();
-                Platform.runLater(() -> showMessage("Register error " + e.getMessage(), true));
+                Platform.runLater(() -> showMessage("Registration error: " + e.getMessage(), true));
             }
         }).start();
+    }
 
+    @Override
+    public void onSessionEstablished() {
+        this.isSessionReady = true;
+        Platform.runLater(() -> showMessage("Secure session established. Ready to log in or register.", false));
+    }
+
+    @Override
+    public void onSessionFailed(String reason) {
+        this.isSessionReady = false;
+        Platform.runLater(() -> showMessage("Session setup failed: " + reason, true));
+    }
+
+    // Metody z interfejsu AuthListener
+    @Override
+    public void onLoginSuccess() {
+        Platform.runLater(() -> {
+            showMessage("Login successful!", false);
+            if (loginSuccessHandler != null) {
+                loginSuccessHandler.onLoginSuccess(chatClient);
+            }
+        });
+    }
+
+    @Override
+    public void onLoginFailure(String reason) {
+        Platform.runLater(() -> showMessage("Login failed: " + reason, true));
+    }
+
+    @Override
+    public void onRegisterSuccess() {
+        Platform.runLater(() -> showMessage("Registration successful! You can now log in.", false));
+    }
+
+    @Override
+    public void onRegisterFailure(String reason) {
+        Platform.runLater(() -> showMessage("Registration failed: " + reason, true));
     }
 
     private void showMessage(String message, boolean isError) {
-        // Wyświetla komunikat dla użytkownika
         statusLabel.setText(message);
         statusLabel.setStyle(isError ? "-fx-text-fill: #ff0000;" : "-fx-text-fill: #176817;");
     }
+
+    public void setLoginSuccessHandler(LoginSuccessHandler handler) {
+        this.loginSuccessHandler = handler;
+    }
+
 }

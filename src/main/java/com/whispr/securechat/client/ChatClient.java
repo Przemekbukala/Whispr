@@ -185,6 +185,8 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         if (connectionStatusListener != null) {
         connectionStatusListener.onConnectionStatusChanged(false);
         }
+        System.out.println("User " + this.username+" disconnected from the server.");
+
     }
 
     private synchronized void sendClientPublicRSAKey() throws Exception {
@@ -350,7 +352,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                             " but no E2E session is established.");
                 }
                 break;
-
             case AES_KEY_EXCHANGE:
                 try {
                     sendClientAESKey();
@@ -464,6 +465,29 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         networkManager.sendData(registerMessage);
     }
 
+    public  void  logout() {
+        if (networkManager != null && this.username != null) {
+            try {
+                String payload = "User " + this.username + " is logging out!!";
+                IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+                String encryptedPayload = AESEncryptionUtil.encrypt(payload.getBytes(), this.aesKey, iv);
+                Message message = new Message(
+                        LOGOUT,
+                        username,
+                        "server",
+                        encryptedPayload,
+                        iv.getIV(),
+                        System.currentTimeMillis()
+                );
+                networkManager.sendData(message);
+                System.out.println("Logout information was sent to server");
+            } catch (Exception e) {
+                System.err.println("Error while logging out ");
+            } finally {
+                disconnect();
+            }
+        }
+    }
 
     // Metody do ustawiania listenerów
     public void setMessageReceivedListener(MessageReceivedListener listener) {

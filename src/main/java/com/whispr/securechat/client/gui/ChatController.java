@@ -26,6 +26,15 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
     public void setChatClient(ChatClient client) { /* ... */ }
 
     @FXML
+    private void handleLogoutButtonAction() {
+        if (chatClient != null) {
+            chatClient.logout();
+        }
+        // tutaj powniismy  dodac zeby powrocic do logowania
+    }
+
+
+    @FXML
     private void initialize() {
         // Inicjalizacja komponentów GUI i listenerów
     }

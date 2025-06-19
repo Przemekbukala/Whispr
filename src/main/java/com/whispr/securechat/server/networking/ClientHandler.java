@@ -192,6 +192,9 @@ public class ClientHandler implements Runnable {
                 }
                 sendPublicRSAKey(server.getServerRSAPublicKey());
                 break;
+            case LOGOUT:
+                handleLogout();
+                break;
             case LOGIN:
                 // Tutaj logika logowania
                 handleLogin(message);
@@ -411,6 +414,25 @@ public class ClientHandler implements Runnable {
             }
         }
     }
+
+    private void handleLogout() {
+        try {
+            if (this.username != null) {
+                server.getClientManager().removeClient(this.username);
+                server.getClientManager().broadcastLogToAdmins("User '" + this.username + "' logged out successfully.");
+                this.username = null;
+                this.aesKey = null;
+                this.clientRSAPublicKey = null;
+            }
+            if (clientSocket != null && !clientSocket.isClosed()) {
+                clientSocket.close();
+            }
+        }catch (Exception e){
+            System.err.println("Error during logout process for user: " + this.username);
+            e.printStackTrace();
+        }
+    }
+
 
     private void handleAdminLogin(Message message) {
         String adminUsername = null;

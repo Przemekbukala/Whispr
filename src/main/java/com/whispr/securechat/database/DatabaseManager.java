@@ -144,6 +144,38 @@ public class DatabaseManager {
     }
 
     /**
+     * Resets the password for a given user.
+     * The new password is automatically hashed before being stored.
+     * @param username The username of the user to update.
+     * @param newPassword The new plaintext password.
+     * @return true if the password was successfully reset, false otherwise.
+     * @throws Exception if a password hashing error occurs.
+     */
+    public boolean resetUserPassword(String username, String newPassword) throws Exception {
+        String sql = "UPDATE users SET password = ? WHERE username = ?";
+        String hashedPassword = PasswordHasher.hashPassword(newPassword);
+
+        try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
+             PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
+
+            preparedStatement.setString(1, hashedPassword);
+            preparedStatement.setString(2, username);
+
+            int affectedRows = preparedStatement.executeUpdate();
+            if (affectedRows > 0) {
+                log.info("Successfully reset password for user: {}", username);
+                return true;
+            } else {
+                log.warn("Could not reset password. User not found: {}", username);
+                return false;
+            }
+        } catch (SQLException e) {
+            log.error("Database error during password reset for user: {}", username, e);
+            return false;
+        }
+    }
+
+    /**
      * Registers a new administrator in the 'admins' table.
      * Can be used for initial, one-time setup of an admin account.
      * @param username The admin's username.

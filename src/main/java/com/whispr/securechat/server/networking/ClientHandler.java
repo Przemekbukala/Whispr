@@ -17,10 +17,7 @@ import java.security.PrivateKey;
 import java.util.Base64;
 import java.util.Set;
 
-import com.whispr.securechat.common.LoginPayload;
-import com.whispr.securechat.common.Message;
-import com.whispr.securechat.common.MessageType;
-import com.whispr.securechat.common.User;
+import com.whispr.securechat.common.*;
 import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.server.ChatServer; // Może potrzebować dostępu do ClientManager
@@ -270,7 +267,6 @@ public class ClientHandler implements Runnable {
                     e.printStackTrace();
                 }
                 break;
-
             case ADMIN_KICK_USER:
                 if (this.isAdmin) {
                     try {
@@ -279,6 +275,28 @@ public class ClientHandler implements Runnable {
                     } catch (Exception e) {
                         System.err.println("Admin " + this.username + " failed to process kick request.");
                         server.getClientManager().broadcastLogToAdmins("Failed to kick User '" + username);
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            case ADMIN_RESET_PASSWORD:
+                if (this.isAdmin) {
+                    try {
+                        String decryptedPayload = decryptChatMessage(message);
+                        PasswordResetPayload payload = gson.fromJson(decryptedPayload, PasswordResetPayload.class);
+                        String usernameToReset = payload.getUsername();
+                        String newPassword = payload.getNewPassword();
+
+                        boolean success = server.getDbManager().resetUserPassword(usernameToReset, newPassword);
+
+                        if (success) {
+                            server.getClientManager().broadcastLogToAdmins("Admin '" + this.username + "' successfully reset password for user '" + usernameToReset + "'.");
+                        } else {
+                            server.getClientManager().broadcastLogToAdmins("Admin '" + this.username + "' FAILED to reset password for user '" + usernameToReset + "'.");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Admin " + this.username + " failed to process password reset request.");
+                        server.getClientManager().broadcastLogToAdmins("Error processing password reset from admin '" + this.username + "'.");
                         e.printStackTrace();
                     }
                 }

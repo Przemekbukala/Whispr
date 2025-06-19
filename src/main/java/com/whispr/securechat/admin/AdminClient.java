@@ -18,10 +18,12 @@ import java.security.PublicKey;
 import java.util.Base64;
 import java.util.Scanner;
 import java.util.Set;
+import com.google.gson.Gson;
 
 import static com.whispr.securechat.common.Constants.ADMIN_PASSWORD;
 import static com.whispr.securechat.common.MessageType.*;
 import static com.whispr.securechat.security.RSAEncryptionUtil.encryptRSA;
+
 
 public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private ClientNetworkManager networkManager;
@@ -33,6 +35,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     private boolean adminAESKeySent = false;
     private SecretKey aesAdminKey;
     private AdminClientListener listener;
+    private final Gson gson = new Gson();
 
     public AdminClient(String serverAddress) {
         this.serverPort = Constants.SERVER_PORT;
@@ -192,6 +195,33 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             networkManager.sendData(kickRequest);
         } catch (Exception e) {
             System.err.println("Error sending kick user request for " + usernameToKick);
+            e.printStackTrace();
+        }
+    }
+
+    public void sendResetPasswordRequest(String username, String newPassword) {
+        if (aesAdminKey == null) {
+            System.err.println("AdminClient: Cannot send reset password request, session not ready.");
+            return;
+        }
+        try {
+            PasswordResetPayload payload = new PasswordResetPayload(username, newPassword);
+            String jsonPayload = gson.toJson(payload);
+
+            IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+            String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesAdminKey, iv);
+
+            Message resetRequest = new Message(
+                    MessageType.ADMIN_RESET_PASSWORD,
+                    "admin",
+                    "server",
+                    encryptedPayload,
+                    iv.getIV(),
+                    System.currentTimeMillis()
+            );
+            networkManager.sendData(resetRequest);
+        } catch (Exception e) {
+            System.err.println("Error sending reset password request for " + username);
             e.printStackTrace();
         }
     }

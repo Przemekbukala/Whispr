@@ -158,14 +158,14 @@ public class ClientManager {
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
                 String encryptedNotice = AESEncryptionUtil.encrypt(kickNote.getBytes(), handlerToKick.getAesKey(), iv);
                 Message noticeMessage = new Message(
-                        MessageType.SERVER_INFO,
+                        MessageType.ADMIN_KICK_NOTIFICATION,
                         "server",
                         usernameToKick,
                         encryptedNotice,
                         iv.getIV(),
                         System.currentTimeMillis());
                 handlerToKick.sendMessage(noticeMessage);
-                Thread.sleep(1000);
+                Thread.sleep(2000);
                 handlerToKick.getClientSocket().close();
                 broadcastLogToAdmins("User '" + usernameToKick + "' was kicked by admin.");
             } catch (Exception e) {

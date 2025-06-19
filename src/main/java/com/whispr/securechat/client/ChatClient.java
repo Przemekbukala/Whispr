@@ -43,6 +43,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private ErrorListener errorListener;
     private SessionStateListener sessionListener;
     private AuthListener authListener;
+    private KickedListener kickedListener;
 
 
     public ChatClient(String serverAddress, int serverPort) {
@@ -406,7 +407,13 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
             case REGISTER_FAILURE:
                 if (authListener != null) authListener.onRegisterFailure(decryptedPayload(message));
                 break;
-
+            case ADMIN_KICK_NOTIFICATION:
+                String reason = decryptedPayload(message);
+                if (kickedListener != null) {
+                    kickedListener.onKicked(reason);
+                }
+                disconnect();
+                break;
             case ERROR: // Istniejący case ERROR nadal może być używany
                 String errorMessage = decryptedPayload(message);
                 System.err.println("ERROR from server: " + errorMessage);
@@ -518,6 +525,10 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
     }
 
+    public void setKickedListener(KickedListener listener) { // <-- DODAJ TEN SETTER
+        this.kickedListener = listener;
+    }
+
     public void setSessionStateListener(SessionStateListener listener) {
         this.sessionListener = listener;
     }
@@ -595,6 +606,10 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     public interface ConnectionStatusListener {
         void onConnectionStatusChanged(boolean connected);
+    }
+
+    public interface KickedListener {
+        void onKicked(String reason);
     }
 }
 

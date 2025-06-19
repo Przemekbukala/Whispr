@@ -7,13 +7,14 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import com.whispr.securechat.client.ChatClient;
 import com.whispr.securechat.common.Constants;
 
 import java.net.URL;
 
-public class MainApplication extends Application implements LoginController.LoginSuccessHandler,  ChatController.SceneSwitcher
+public class MainApplication extends Application implements LoginController.LoginSuccessHandler,  ChatController.SceneSwitcher,ChatClient.KickedListener
 
 {
     private ChatClient chatClient;
@@ -23,7 +24,6 @@ public class MainApplication extends Application implements LoginController.Logi
     public void start(Stage primaryStage) throws Exception {
         this.primaryStage = primaryStage;
         this.primaryStage.setTitle("Secure Chat Application");
-        // Inicjalizacja ChatClient
         chatClient = new ChatClient("localhost", Constants.SERVER_PORT); // Zakładamy lokalny serwer
       showLoginScreen();
     }
@@ -34,6 +34,8 @@ public class MainApplication extends Application implements LoginController.Logi
     }
 
     public void onLoginSuccess(ChatClient client) {
+        this.chatClient = client;
+        this.chatClient.setKickedListener(this);
         Platform.runLater(() -> {
             try {
                 showChatScreen();
@@ -94,7 +96,21 @@ public class MainApplication extends Application implements LoginController.Logi
         primaryStage.show();
     }
 
+    @Override
+    public void onKicked(String reason) { // <-- ZIMPLEMENTUJ METODĘ
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Disconnected");
+            alert.setHeaderText("You have been kicked from the server.");
+            alert.setContentText(reason);
 
+            alert.showAndWait();
+
+            if (primaryStage != null) {
+                primaryStage.close();
+            }
+        });
+    }
 
 
     @Override

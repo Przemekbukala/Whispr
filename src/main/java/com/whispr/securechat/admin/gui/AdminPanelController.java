@@ -8,7 +8,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputDialog;
 
+import java.util.Optional;
 import java.util.Set;
 
 public class AdminPanelController {
@@ -30,6 +32,7 @@ public class AdminPanelController {
     @FXML
     private void initialize() {
         kickUserButton.setOnAction(event -> handleKickUserButtonAction());
+        resetPasswordButton.setOnAction(event -> handleResetPasswordButtonAction());
     }
 
     private void handleKickUserButtonAction() {
@@ -42,6 +45,31 @@ public class AdminPanelController {
         } else {
             System.out.println("No user selected to kick.");
         }
+    }
+
+    private void handleResetPasswordButtonAction() {
+        User selectedUser = usersListView.getSelectionModel().getSelectedItem();
+        if (selectedUser == null) {
+            appendLogMessage("SYSTEM: Please select a user to reset their password.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Password Reset");
+        dialog.setHeaderText("Reset password for " + selectedUser.getUsername());
+        dialog.setContentText("Please enter the new password:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(newPassword -> {
+            if (newPassword.isBlank()) {
+                appendLogMessage("SYSTEM: Password cannot be empty.");
+            } else {
+                System.out.println("Attempting to reset password for user: " + selectedUser.getUsername());
+                if (adminClient != null) {
+                    adminClient.sendResetPasswordRequest(selectedUser.getUsername(), newPassword);
+                }
+            }
+        });
     }
 
     public void setAdminClient(AdminClient client) {

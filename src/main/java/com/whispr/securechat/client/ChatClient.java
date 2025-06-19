@@ -6,7 +6,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -199,14 +198,14 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
             return;
         }
 
-        Message wiadomosc_do_wyslania = new Message(
+        Message message = new Message(
                 PUBLIC_KEY_EXCHANGE,
                 username,
                 "server",
                 Base64.getEncoder().encodeToString(rsaKeyPair.getPublic().getEncoded()),
                 System.currentTimeMillis()
         );
-        networkManager.sendData(wiadomosc_do_wyslania);
+        networkManager.sendData(message);
         clientPublicKeySent = true;
         System.out.println("The client's RSA public key was sent.");
 
@@ -259,9 +258,14 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 }
                 break;
 
-            case SERVER_INFO:
-                System.out.println("SERVER_INFO");
-                break;
+//            case SERVER_INFO:
+//                String serverMessage = decryptedPayload(message);
+//                if (serverMessage.equals("Logged successfully!")) {
+//                    if (loginStatusListener != null) { // loginStatusListener to nowa zmienna
+//                        loginStatusListener.onLoginSuccess();
+//                    }
+//                }
+//                break;
 
             case E2E_PUBLIC_KEY_RESPONSE:
                 try {
@@ -427,12 +431,10 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     //
     public void login(String username, String password) throws Exception {
         this.username = username; // Set username for the session
-        // Encode the client's CURRENT public RSA key to send with the login request
         String publicKeyB64 = Base64.getEncoder().encodeToString(this.rsaKeyPair.getPublic().getEncoded());
         LoginPayload payload = new LoginPayload(username, password, publicKeyB64); // Use constructor that includes the key
         String jsonPayload = new Gson().toJson(payload);
 
-        // This part remains the same
         IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
         String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv);
 
@@ -540,6 +542,12 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     public void setErrorListener(ErrorListener listener) {
         this.errorListener = listener;
     }
+
+    public interface LoginStatusListener {
+        void onLoginSuccess();
+        void onLoginFailure(String errorMessage);
+    }
+
 
 
 

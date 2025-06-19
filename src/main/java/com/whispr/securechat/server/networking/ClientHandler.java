@@ -180,6 +180,21 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleMessage(Message message) throws Exception {
+        // Zbiór typów wiadomości dozwolonych przed zalogowaniem
+        Set<MessageType> allowedPreAuthMessages = Set.of(
+                MessageType.PUBLIC_KEY_EXCHANGE,
+                MessageType.AES_KEY_EXCHANGE,
+                MessageType.LOGIN,
+                MessageType.REGISTER,
+                MessageType.ADMIN_LOGIN
+        );
+
+        if (this.username == null && !allowedPreAuthMessages.contains(message.getType())) {
+            System.err.println("Received unauthorized message of type " + message.getType() + " from unauthenticated client. Disconnecting.");
+            clientSocket.close();
+            return;
+        }
+
         switch (message.getType()) {
             case PUBLIC_KEY_EXCHANGE:
                 try {
@@ -418,11 +433,19 @@ public class ClientHandler implements Runnable {
     private void handleLogout() {
         try {
             if (this.username != null) {
-                server.getClientManager().removeClient(this.username);
-                server.getClientManager().broadcastLogToAdmins("User '" + this.username + "' logged out successfully.");
+                String logMessage = "User '" + this.username + "' logged out successfully.";
+                if (this.isAdmin) {
+                    server.getClientManager().removeAdmin(this.username);
+                    logMessage = "Admin '" + this.username + "' logged out successfully.";
+                } else {
+                    server.getClientManager().removeClient(this.username);
+                }
+
+                server.getClientManager().broadcastLogToAdmins(logMessage);
                 this.username = null;
                 this.aesKey = null;
                 this.clientRSAPublicKey = null;
+                this.isAdmin = false;
             }
             if (clientSocket != null && !clientSocket.isClosed()) {
                 clientSocket.close();

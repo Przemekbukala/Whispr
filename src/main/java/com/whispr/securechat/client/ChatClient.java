@@ -41,7 +41,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private ConcurrentHashMap<String, PublicKey> userPublicKeys;
     private final Gson gson = new Gson();
     private Map<String, Queue<String>> pendingMessages;
-
+    private ErrorListener errorListener;
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
@@ -383,10 +383,14 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     }
                 }
                 break;
-            //  adding messege type ERROR
             case ERROR:
-                System.err.println("Error from server  " +  "tu bedzie dlaczego error albo cos  w tym stylu ");
-//                message.getPayload()
+                String errorMessage = decryptedPayload(message);
+                System.err.println("ERROR from server: " + errorMessage);
+                if (errorListener != null) {
+                    errorListener.onErrorReceived(errorMessage);
+                } else{
+                    System.err.println("Error listener not set.");
+                }
                 break;
             default:
                 System.out.println("A message of an unsupported type was received: " + message.getType());
@@ -529,6 +533,15 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     public interface UserListListener {
         void onUserListUpdated(Set<User> users);
     }
+// nowy listener dla wiadomosci typu ERROR
+    public interface ErrorListener {
+        void onErrorReceived(String errorMessage);
+    }
+    public void setErrorListener(ErrorListener listener) {
+        this.errorListener = listener;
+    }
+
+
 
     //
     public interface ConnectionStatusListener {

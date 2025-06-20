@@ -1,5 +1,6 @@
 package com.whispr.securechat.client.gui;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
@@ -8,6 +9,7 @@ import javafx.collections.ObservableList; // Dla ListView
 import com.whispr.securechat.client.ChatClient;
 import com.whispr.securechat.common.User;
 
+import java.awt.desktop.SystemSleepEvent;
 import java.util.Set;
 //public class ChatController{
 
@@ -24,7 +26,13 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
     private ObservableList<User> users;     // Dane dla usersListView
     private SceneSwitcher sceneSwitcher;
 
-    public void setChatClient(ChatClient client) { this.chatClient = client; }
+    public void setChatClient(ChatClient client) {
+        this.chatClient = client;
+        if (client != null) {
+            client.setMessageReceivedListener(this);
+            client.setUserListListener(this);
+        }
+    }
 
     @FXML
     private void handleLogoutButtonAction() {
@@ -35,9 +43,25 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
         if (sceneSwitcher != null) {
             sceneSwitcher.switchToLoginScene();
         }
-
-        // tutaj powniismy  dodac zeby powrocic do logowania
     }
+
+
+    @FXML
+    private void handleListUpdateButtom() {
+        if (chatClient != null) {
+            System.out.println("doesnt work handleListUpdateButtom ");
+        }
+        try {
+        chatClient.sendServerUPdateListRequest();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
+
+
     // interfeace to change scene
     public interface SceneSwitcher  {
         void switchToLoginScene();
@@ -54,25 +78,55 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
     @FXML
     private void initialize() {
         // Inicjalizacja komponentów GUI i listenerów
+        if (messages == null) {
+            messages = javafx.collections.FXCollections.observableArrayList();
+        }
+        if (users == null) {
+            users = javafx.collections.FXCollections.observableArrayList();
+        }
+        chatMessagesListView.setItems(messages);
+        usersListView.setItems(users);
     }
 
     @FXML
     private void handleSendMessageButtonAction() {
         // Logika wysyłania wiadomości
+        String message = messageInputArea.getText().trim();
+        User recipient = usersListView.getSelectionModel().getSelectedItem();
+        if (!message.isEmpty() && chatClient != null && recipient != null) {
+            try {
+                chatClient.sendMessage(recipient.getUsername(), message);
+                messages.add("Me: " + message);
+                messageInputArea.clear();
+            } catch (Exception e) {
+                messages.add("Error: " + e.getMessage());
+            }
+        }
     }
+
+
 
     @Override
     public void onMessageReceived(String sender, String content) {
-        // Wyświetla nową wiadomość w chatMessagesListView
+        Platform.runLater(() -> {
+            messages.add(sender + ": " + content); //
+        });
     }
-//
     @Override
     public void onUserListUpdated(Set<User> updatedUsers) {
-        // Aktualizuje listę użytkowników w usersListView
+        Platform.runLater(() -> {
+            users.setAll(updatedUsers); //
+        });
     }
 
+
+
     private String getSelectedRecipient() {
-        // Zwraca wybranego odbiorcę z listy użytkowników (jeśli wiadomość prywatna)
+        User selected = usersListView.getSelectionModel().getSelectedItem(); //
+        if (selected != null) {
+            return selected.getUsername(); //
+        }
         return null;
     }
 }
+

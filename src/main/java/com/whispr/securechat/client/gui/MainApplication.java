@@ -44,9 +44,6 @@ public class MainApplication extends Application implements LoginController.Logi
             }
         });
     }
-
-
-
     public void showLoginScreen() throws Exception {
         // Ładowanie FXML ekranu logowania i ustawianie kontrolera
         try {
@@ -64,8 +61,6 @@ public class MainApplication extends Application implements LoginController.Logi
             System.out.println("ERROR: Could not load login screen.");
         }
     }
-
-
     public void switchToLoginScene() {
         if (chatClient != null) {
             chatClient.disconnect();
@@ -95,7 +90,6 @@ public class MainApplication extends Application implements LoginController.Logi
         primaryStage.setScene(scene);
         primaryStage.show();
     }
-
     @Override
     public void onKicked(String reason) { // <-- ZIMPLEMENTUJ METODĘ
         Platform.runLater(() -> {
@@ -103,15 +97,12 @@ public class MainApplication extends Application implements LoginController.Logi
             alert.setTitle("Disconnected");
             alert.setHeaderText("You have been kicked from the server.");
             alert.setContentText(reason);
-
             alert.showAndWait();
-
             if (primaryStage != null) {
                 primaryStage.close();
             }
         });
     }
-
 
     @Override
     public void stop() {

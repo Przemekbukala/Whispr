@@ -216,6 +216,33 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     }
 
+
+    public synchronized void sendServerUPdateListRequest() throws Exception {
+        if (this.aesKey == null) {
+            System.err.println("ChatClient: AES session key is null. Cannot send USER_LIST_REQUEST.");
+            return;
+        }
+        if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
+            System.err.println("Client public key could not be found.");
+            return;
+        }
+        String messageToSend = "request_user_list";
+        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+        String encryptedPayload = AESEncryptionUtil.encrypt(messageToSend.getBytes(), this.aesKey, iv);
+
+        Message message = new Message(
+                USER_LIST_REQUEST,
+                username,
+                "server",
+                encryptedPayload,
+                iv.getIV(),
+                System.currentTimeMillis()
+        );
+        networkManager.sendData(message);
+        System.out.println("The client USER_LIST_REQUEST was sent.");
+    }
+
+
     public synchronized void sendClientAESKey() throws Exception {
         if (aesKey == null) {
             System.err.println("AES key is empty");
@@ -361,30 +388,36 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     e.printStackTrace();
                 }
                 break;
-
             case USER_LIST_UPDATE:
                 if (userListListener != null) {
                     try {
                         // Serwer w tym przypadku wysyła nieszyfrowany JSON z listą nazw użytkowników
                         String jsonPayload = decryptedPayload(message);
-                        if (jsonPayload == null) {
+                        if (jsonPayload == null || jsonPayload.isBlank()) {
                             System.err.println("Failed to decrypt user list update.");
                             break;
                         }
-                        java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<String>>() {
-                        }.getType();
-                        java.util.Set<String> usernames = gson.fromJson(jsonPayload, userSetType);
+                        System.out.println("ChatClient: Received USER_LIST_UPDATE, payload (after decryption/unescaping if applicable): " + jsonPayload);
+//                        java.util.Set<String> usernames = gson.fromJson(jsonPayload, userSetType);
+//                        java.util.Set<User> users = new java.util.HashSet<>();
+//                        for (String name : usernames) {
+//                            if (!name.equals(this.username)) {
+//                                users.add(new User(name, true));
+//                            }
+////                            users.add(new User(name, true)); //zakladamy bycie online?? TODO
+//                        }
 
-                        java.util.Set<User> users = new java.util.HashSet<>();
-                        for (String name : usernames) {
-                            users.add(new User(name, true)); //zakladamy bycie online?? TODO
-                        }
+                        java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<User>>() {}.getType();
+                        java.util.Set<User> users = gson.fromJson(jsonPayload, userSetType);
+                        users.removeIf(user -> user.getUsername().equals(this.username));
                         userListListener.onUserListUpdated(users);
                     } catch (Exception e) {
                         System.err.println("Error processing user list update: " + e.getMessage());
                     }
                 }
                 break;
+
+
             case SERVER_INFO:
                 String serverMessage = decryptedPayload(message);
                 if (serverMessage != null && serverMessage.startsWith("AES key received successfully")) {

@@ -195,25 +195,25 @@ public class ClientHandler implements Runnable {
         }
 
         switch (message.getType()) {
-            case USER_LIST_REQUEST:
-                // TYMCZASowe roziwazanie generalnei jest problem abloweim jak odaplisz dwa razy main  application to tylko jedeen uzytwkoink wiidzi uzytkwonikow zalagowanych
-                //wiec zrobiłem guzik refresh ktory wyslya do serwera prosbe o to  niestety aktualizuje do wsyztskich wiec trzbea do zmienic
-                Set<User> userList = server.getClientManager().getLoggedInUsers();
-                String jsonPayload = new Gson().toJson(userList);
-                IvParameterSpec iv2 = AESEncryptionUtil.generateIVParameterSpec();
-                String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv2);
-                Message userListMessage = new Message(
-                        MessageType.USER_LIST_UPDATE,
-                        "server",
-                        username,
-                        encryptedPayload,
-                        iv2.getIV(),
-                        System.currentTimeMillis()
-                );
-                sendMessage(userListMessage);
-                break;
-
-
+//            case USER_LIST_REQUEST:
+//                // TYMCZASowe roziwazanie generalnei jest problem abloweim jak odaplisz dwa razy main  application to tylko jedeen uzytwkoink wiidzi uzytkwonikow zalagowanych
+//                //wiec zrobiłem guzik refresh ktory wyslya do serwera prosbe o to  niestety aktualizuje do wsyztskich wiec trzbea do zmienic
+//                Set<User> userList = server.getClientManager().getLoggedInUsers();
+//                String jsonPayload = new Gson().toJson(userList);
+//                IvParameterSpec iv2 = AESEncryptionUtil.generateIVParameterSpec();
+//                String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv2);
+//                Message userListMessage = new Message(
+//                        MessageType.USER_LIST_UPDATE,
+//                        "server",
+//                        username,
+//                        encryptedPayload,
+//                        iv2.getIV(),
+//                        System.currentTimeMillis()
+//                );
+//                sendMessage(userListMessage);
+//                break;
+//
+//
 
             case PUBLIC_KEY_EXCHANGE:
                 try {
@@ -380,7 +380,6 @@ public class ClientHandler implements Runnable {
             if (wasLoginSuccessful) {
                 // If login is successful, update the user's public key in the database
                 server.getDbManager().updateUserPublicKey(username, publicKey);
-
                 this.username = username;
                 server.getClientManager().addClient(username, this);
                 server.getClientManager().broadcastLogToAdmins("User '" + username + "' logged in successfully.");
@@ -397,7 +396,7 @@ public class ClientHandler implements Runnable {
                         iv.getIV(),
                         System.currentTimeMillis());
                 sendMessage(loginConfirmationMessage);
-                server.getClientManager().broadcastUserList();
+                server.getClientManager().notifyClientsOfUserListChange();
             } else {
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
                 String payloadToEncrypt = "Username or password incorrect!";

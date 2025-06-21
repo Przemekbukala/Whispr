@@ -11,20 +11,29 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.layout.Region?>
 
 <BorderPane fx:controller="com.whispr.securechat.client.gui.ChatController"
             prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1">
     <top>
-        <HBox alignment="CENTER_LEFT" prefHeight="50.0" style="-fx-padding: 0 0 0 15; -fx-border-width: 0 0 1 0; -fx-border-color: #e0e0e0;">
+        <HBox alignment="CENTER_LEFT" prefHeight="50.0" spacing="10" style="-fx-padding: 0 15 0 15; -fx-border-width: 0 0 1 0; -fx-border-color: #e0e0e0;">
             <children>
-                <Label text="Client Panel whispr   ">
+                <Label text="Client Panel whispr">
                     <font>
                         <Font name="System Bold" size="16.0"/>
                     </font>
                 </Label>
-                <Button fx:id="logoutButton" text="Wyloguj" onAction="#handleLogoutButtonAction" prefHeight="20.0"/>
-                <Button fx:id="refreshUserListButton" text="Odśwież listę" onAction="#handleListUpdateButtom" prefHeight="20.0"/>
+
+                <Label fx:id="welcomeLabel" text="Witaj, ..." style="-fx-text-fill: #555555;">
+                    <font>
+                        <Font size="16.0"/>
+                    </font>
+                </Label>
+
+                <Region HBox.hgrow="ALWAYS" />
+
+                <Button fx:id="logoutButton" text="Wyloguj" onAction="#handleLogoutButtonAction" />
             </children>
         </HBox>
     </top>

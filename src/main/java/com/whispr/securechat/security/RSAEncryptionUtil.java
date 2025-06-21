@@ -17,22 +17,6 @@ public class RSAEncryptionUtil {
             return null;
         }
     }
-    public static String encrypt(byte[] data, PublicKey publicKey) throws Exception {
-        // Szyfrowanie danych kluczem publicznym RSA
-        Cipher  c =Cipher.getInstance(RSA_ALGORITHM);
-        c.init(Cipher.ENCRYPT_MODE, publicKey);
-        byte[] encrypt_data =c.doFinal(data);
-        return Base64.getEncoder().encodeToString(encrypt_data); // Zwróci zaszyfrowane dane
-    }
-
-    public static String decrypt(String encryptedData, PrivateKey privateKey) throws Exception {
-        // Deszyfrowanie danych kluczem prywatnym RSA
-        Cipher  c =Cipher.getInstance(RSA_ALGORITHM);
-        c.init(Cipher.DECRYPT_MODE, privateKey);
-        byte[] encryptedBytes = Base64.getDecoder().decode(encryptedData);
-        byte[] decrypt_data =c.doFinal(encryptedBytes);
-        return new String(decrypt_data); // Zwróci odszyfrowane dane
-    }
 
     public static PublicKey decodePublicKey(String encodedPublicKey) throws Exception {
         byte[] publicKeyData = Base64.getDecoder().decode(encodedPublicKey);

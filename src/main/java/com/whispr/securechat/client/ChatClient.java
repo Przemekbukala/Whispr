@@ -44,7 +44,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private SessionStateListener sessionListener;
     private AuthListener authListener;
     private KickedListener kickedListener;
-
+    private Set<User> bufferedUserList = null;
 
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
@@ -217,30 +217,30 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     }
 
 
-    public synchronized void sendServerUPdateListRequest() throws Exception {
-        if (this.aesKey == null) {
-            System.err.println("ChatClient: AES session key is null. Cannot send USER_LIST_REQUEST.");
-            return;
-        }
-        if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
-            System.err.println("Client public key could not be found.");
-            return;
-        }
-        String messageToSend = "request_user_list";
-        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
-        String encryptedPayload = AESEncryptionUtil.encrypt(messageToSend.getBytes(), this.aesKey, iv);
-
-        Message message = new Message(
-                USER_LIST_REQUEST,
-                username,
-                "server",
-                encryptedPayload,
-                iv.getIV(),
-                System.currentTimeMillis()
-        );
-        networkManager.sendData(message);
-        System.out.println("The client USER_LIST_REQUEST was sent.");
-    }
+//    public synchronized void sendServerUPdateListRequest() throws Exception {
+//        if (this.aesKey == null) {
+//            System.err.println("ChatClient: AES session key is null. Cannot send USER_LIST_REQUEST.");
+//            return;
+//        }
+//        if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
+//            System.err.println("Client public key could not be found.");
+//            return;
+//        }
+//        String messageToSend = "request_user_list";
+//        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
+//        String encryptedPayload = AESEncryptionUtil.encrypt(messageToSend.getBytes(), this.aesKey, iv);
+//
+//        Message message = new Message(
+//                USER_LIST_REQUEST,
+//                username,
+//                "server",
+//                encryptedPayload,
+//                iv.getIV(),
+//                System.currentTimeMillis()
+//        );
+//        networkManager.sendData(message);
+//        System.out.println("The client USER_LIST_REQUEST was sent.");
+//    }
 
 
     public synchronized void sendClientAESKey() throws Exception {
@@ -389,34 +389,31 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 }
                 break;
             case USER_LIST_UPDATE:
-                if (userListListener != null) {
-                    try {
-                        // Serwer w tym przypadku wysyła nieszyfrowany JSON z listą nazw użytkowników
-                        String jsonPayload = decryptedPayload(message);
-                        if (jsonPayload == null || jsonPayload.isBlank()) {
-                            System.err.println("Failed to decrypt user list update.");
-                            break;
-                        }
-                        System.out.println("ChatClient: Received USER_LIST_UPDATE, payload (after decryption/unescaping if applicable): " + jsonPayload);
-//                        java.util.Set<String> usernames = gson.fromJson(jsonPayload, userSetType);
-//                        java.util.Set<User> users = new java.util.HashSet<>();
-//                        for (String name : usernames) {
-//                            if (!name.equals(this.username)) {
-//                                users.add(new User(name, true));
-//                            }
-////                            users.add(new User(name, true)); //zakladamy bycie online?? TODO
-//                        }
-
-                        java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<User>>() {}.getType();
-                        java.util.Set<User> users = gson.fromJson(jsonPayload, userSetType);
-                        users.removeIf(user -> user.getUsername().equals(this.username));
-                        userListListener.onUserListUpdated(users);
-                    } catch (Exception e) {
-                        System.err.println("Error processing user list update: " + e.getMessage());
+                try {
+                    String jsonPayload = decryptedPayload(message);
+                    if (jsonPayload == null || jsonPayload.isBlank()) {
+                        System.err.println("Failed to decrypt user list update.");
+                        break;
                     }
+
+                    System.out.println("ChatClient: Received USER_LIST_UPDATE, payload: " + jsonPayload);
+
+                    java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<User>>() {}.getType();
+                    java.util.Set<User> users = gson.fromJson(jsonPayload, userSetType);
+                    users.removeIf(user -> user.getUsername().equals(this.username));
+
+                    if (this.userListListener != null) {
+                        System.out.println("Listener is ready. Updating user list in GUI.");
+                        this.userListListener.onUserListUpdated(users);
+                    } else {
+                        System.out.println("Listener not ready. Buffering user list.");
+                        this.bufferedUserList = users;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error processing user list update: " + e.getMessage());
+                    e.printStackTrace();
                 }
                 break;
-
 
             case SERVER_INFO:
                 String serverMessage = decryptedPayload(message);
@@ -577,7 +574,11 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     public void setUserListListener(UserListListener listener) {
         this.userListListener = listener;
-
+        if (this.userListListener != null && this.bufferedUserList != null) {
+            System.out.println("Listener is ready. Applying buffered user list.");
+            this.userListListener.onUserListUpdated(this.bufferedUserList);
+            this.bufferedUserList = null;
+        }
     }
 
     // this method creat ConnectionStatusListener and implements creatConnectionStatusListener.
@@ -644,6 +645,12 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     public interface KickedListener {
         void onKicked(String reason);
     }
+
+
+    public String getUsername() {
+        return this.username;
+    }
+
 }
 
 

@@ -11,7 +11,6 @@ import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import com.whispr.securechat.client.ChatClient;
 import com.whispr.securechat.common.Constants;
-
 import java.net.URL;
 
 public class MainApplication extends Application implements LoginController.LoginSuccessHandler,  ChatController.SceneSwitcher,ChatClient.KickedListener
@@ -91,7 +90,7 @@ public class MainApplication extends Application implements LoginController.Logi
         primaryStage.show();
     }
     @Override
-    public void onKicked(String reason) { // <-- ZIMPLEMENTUJ METODĘ
+    public void onKicked(String reason) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Disconnected");

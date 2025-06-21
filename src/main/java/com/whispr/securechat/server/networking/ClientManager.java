@@ -23,15 +23,18 @@ public class ClientManager {
     }
 
     public void addClient(String username, ClientHandler handler) {
-        // Dodaje nowego zalogowanego klienta
         loggedInClients.put(username, handler);
-        notifyUserListChanged();
+
+    }
+    public void notifyClientsOfUserListChange() {
+        broadcastUserList();
+        notifyUserListChangedForAdmin();
     }
 
     public void removeClient(String username) {
         // Usuwa klienta po wylogowaniu/rozłączeniu
         loggedInClients.remove(username);
-        notifyUserListChanged();
+        notifyClientsOfUserListChange();
     }
 
     public ClientHandler getClientHandler(String username) throws IllegalArgumentException {
@@ -57,9 +60,9 @@ public class ClientManager {
 
     public void broadcastUserList() {
         // Wysyła aktualną listę użytkowników do wszystkich zalogowanych klientów
-        Set<String> usernamesSet = loggedInClients.keySet();
+        Set<User> onlineUsers = getLoggedInUsers();
         Gson gson = new Gson();
-        String jsonPayload = gson.toJson(usernamesSet);
+        String jsonPayload = gson.toJson(onlineUsers);
 
         for (ClientHandler handler : loggedInClients.values()) {
             try {
@@ -79,7 +82,6 @@ public class ClientManager {
                 System.err.println("Error sending encrypted user list to " + handler.getUsername() + ": " + e.getMessage());
             }
         }
-
     }
 
     public Set<User> getLoggedInUsers() {
@@ -93,7 +95,7 @@ public class ClientManager {
 
     }
 
-    private void notifyUserListChanged() {
+    private void notifyUserListChangedForAdmin() {
         // Pobieramy listę, której potrzebujemy
         Set<User> onlineUsers = getLoggedInUsers();
         String jsonPayload = new Gson().toJson(onlineUsers);
@@ -124,7 +126,6 @@ public class ClientManager {
         loggedInAdmins.put(adminUsername,adminHandler);
     }
     public void removeAdmin(String adminUsername){
-        // Usuwa admina po wylogowaniu/rozłączeniu
         loggedInAdmins.remove(adminUsername);
     }
 

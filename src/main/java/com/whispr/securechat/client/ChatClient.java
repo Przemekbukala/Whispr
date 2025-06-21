@@ -33,7 +33,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private MessageReceivedListener messageListener;
     private UserListListener userListListener;
     private ConnectionStatusListener connectionStatusListener;
-    // aby uniknąc zapętlenia
     private boolean clientPublicKeySent = false;
     private boolean clientAESKeySent = false;
     private ConcurrentHashMap<String, SecretKey> conversationKeys;
@@ -65,7 +64,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     public static void main(String[] args) {
         ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
         try {
-            // 1. Connect and establish a secure session with the server
             client.connect();
             client.sendClientPublicRSAKey();
             Thread.sleep(500); // Give time for key exchange
@@ -73,7 +71,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
             System.out.println("Secure session with server established.");
             Thread.sleep(500);
 
-            // 2. Interactive Login/Registration
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             while (true) {
                 System.out.println("Enter 'register' or 'login':");
@@ -88,22 +85,19 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     // In a real app, you'd wait for a success message.
                     // For this test, we'll just try to log in next.
                     System.out.println("Registration request sent. Please restart and log in.");
-                    return;  // after registration there is no need to do  // 3. Chat Loop so its better to return than break
-//                    break;
+                    return;
                 } else if ("login".equalsIgnoreCase(action)) {
                     System.out.println("Enter username:");
                     String username = reader.readLine();
                     System.out.println("Enter password:");
                     String password = reader.readLine();
                     client.login(username, password);
-                    // Wait for login confirmation from server via onMessageReceived
                     break;
                 } else {
                     System.out.println("Invalid action. Use 'register' or 'login'.");
                 }
             }
 
-            // 3. Chat Loop
             System.out.println("\nEnter messages in the format 'recipient:message'. Type 'exit' to quit.");
             while (true) {
                 String line = reader.readLine();
@@ -215,33 +209,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         System.out.println("The client's RSA public key was sent.");
 
     }
-
-
-//    public synchronized void sendServerUPdateListRequest() throws Exception {
-//        if (this.aesKey == null) {
-//            System.err.println("ChatClient: AES session key is null. Cannot send USER_LIST_REQUEST.");
-//            return;
-//        }
-//        if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
-//            System.err.println("Client public key could not be found.");
-//            return;
-//        }
-//        String messageToSend = "request_user_list";
-//        IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
-//        String encryptedPayload = AESEncryptionUtil.encrypt(messageToSend.getBytes(), this.aesKey, iv);
-//
-//        Message message = new Message(
-//                USER_LIST_REQUEST,
-//                username,
-//                "server",
-//                encryptedPayload,
-//                iv.getIV(),
-//                System.currentTimeMillis()
-//        );
-//        networkManager.sendData(message);
-//        System.out.println("The client USER_LIST_REQUEST was sent.");
-//    }
-
 
     public synchronized void sendClientAESKey() throws Exception {
         if (aesKey == null) {

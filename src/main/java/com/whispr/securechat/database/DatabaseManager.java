@@ -3,16 +3,12 @@ package com.whispr.securechat.database;
 import com.whispr.securechat.common.Constants;
 
 import java.sql.*;
-import java.util.Collection;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-// Importy dla exceptionów
+
 
 public class DatabaseManager {
     private static final Logger log = LoggerFactory.getLogger(DatabaseManager.class);
-
-
     public DatabaseManager() {
     }
 
@@ -22,7 +18,6 @@ public class DatabaseManager {
     }
 
     private void createUsersTable(){
-        // Tworzy tabelę użytkowników, jeśli nie istnieje
         String sql = "CREATE TABLE IF NOT EXISTS users ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "username TEXT NOT NULL UNIQUE,"
@@ -47,7 +42,7 @@ public class DatabaseManager {
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "username TEXT NOT NULL UNIQUE,"
                 + "password TEXT NOT NULL,"
-                + "publicKey TEXT NOT NULL" // publicKey for admin might be useful later
+                + "publicKey TEXT NOT NULL"
                 + ");";
 
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
@@ -62,7 +57,7 @@ public class DatabaseManager {
         }
     }
 
-    public boolean registerUser(String username, String password, String publicKey) throws Exception {
+    public boolean registerUser(String username, String password, String publicKey){
         String sql = "INSERT INTO users(username, password, publicKey) VALUES(?,?,?)";
         String hashedPassword = PasswordHasher.hashPassword(password);
 
@@ -85,8 +80,7 @@ public class DatabaseManager {
         }
     }
 
-    public boolean verifyCredentials(String username, String password) throws Exception {
-        // Sprawdza dane logowania
+    public boolean verifyCredentials(String username, String password) {
         String sql = "SELECT password FROM users WHERE username = ?";
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
              PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
@@ -94,7 +88,6 @@ public class DatabaseManager {
             preparedStatement.setString(1, username);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
-                // Pobieramy hash hasła z kolumny "password"
                 String storedHashedPassword = resultSet.getString("password");
                 return PasswordHasher.checkPassword(password, storedHashedPassword);
             } else {
@@ -114,7 +107,7 @@ public class DatabaseManager {
             preparedStatement.setString(1, username);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
-                return resultSet.getString("publicKey"); // CORRECT
+                return resultSet.getString("publicKey");
             }
         }
         return null;
@@ -140,7 +133,6 @@ public class DatabaseManager {
             log.error("Database error during public key update for user: {}", username, e);
             return false;
         }
-
     }
 
     /**
@@ -149,9 +141,8 @@ public class DatabaseManager {
      * @param username The username of the user to update.
      * @param newPassword The new plaintext password.
      * @return true if the password was successfully reset, false otherwise.
-     * @throws Exception if a password hashing error occurs.
      */
-    public boolean resetUserPassword(String username, String newPassword) throws Exception {
+    public boolean resetUserPassword(String username, String newPassword) {
         String sql = "UPDATE users SET password = ? WHERE username = ?";
         String hashedPassword = PasswordHasher.hashPassword(newPassword);
 
@@ -183,7 +174,7 @@ public class DatabaseManager {
      * @param publicKey The admin's public key.
      * @return true if registration was successful, false otherwise.
      */
-    public boolean registerAdmin(String username, String password, String publicKey) throws Exception {
+    public boolean registerAdmin(String username, String password, String publicKey) {
         String sql = "INSERT INTO admins(username, password, publicKey) VALUES(?,?,?)";
         String hashedPassword = PasswordHasher.hashPassword(password);
 
@@ -212,7 +203,7 @@ public class DatabaseManager {
      * @param password The admin's raw password.
      * @return true if credentials are valid, false otherwise.
      */
-    public boolean verifyAdminCredentials(String username, String password) throws Exception {
+    public boolean verifyAdminCredentials(String username, String password) {
         String sql = "SELECT password FROM admins WHERE username = ?";
         try (Connection conn = DriverManager.getConnection(Constants.DB_URL);
              PreparedStatement preparedStatement = conn.prepareStatement(sql)) {

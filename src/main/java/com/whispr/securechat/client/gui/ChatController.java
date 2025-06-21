@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-//public class ChatController{
 
 public class ChatController implements ChatClient.MessageReceivedListener, ChatClient.UserListListener {
     @FXML
@@ -48,7 +47,6 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
         if (chatClient != null) {
             chatClient.logout();
         }
-        // in order to go to login scene
         if (sceneSwitcher != null) {
             sceneSwitcher.switchToLoginScene();
         }
@@ -61,13 +59,6 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
 
     public void setSceneSwitcher(SceneSwitcher switcher) {
         this.sceneSwitcher = switcher;
-    }
-
-    public interface LoginSuccessHandler {
-        public void onLoginSuccess(ChatClient client);
-    }
-
-    public void setLoginSuccessHandler(LoginSuccessHandler handler) {
     }
 
     @FXML
@@ -88,7 +79,6 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
                     setStyle("");
                 } else {
                     setText(user.getUsername());
-                    // Jeśli użytkownik jest w zbiorze nieprzeczytanych, pogrub tekst
                     if (unreadSenders.contains(user.getUsername())) {
                         setStyle("-fx-font-weight: bold;");
                     } else {
@@ -122,7 +112,6 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
             try {
                 chatClient.sendMessage(recipient.getUsername(), message);
 
-                // Dodaj wysłaną wiadomość do lokalnej historii konwersacji
                 ObservableList<String> chatHistory = conversations.get(recipient.getUsername());
                 if (chatHistory != null) {
                     chatHistory.add("Me: " + message);
@@ -130,7 +119,6 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
 
                 messageInputArea.clear();
             } catch (Exception e) {
-                // Dodaj błąd do aktualnie aktywnego okna czatu
                 if (currentChatUser != null) {
                     conversations.get(currentChatUser).add("Error: " + e.getMessage());
                 }
@@ -142,12 +130,10 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
     @Override
     public void onMessageReceived(String sender, String content) {
         Platform.runLater(() -> {
-            // Jeśli wiadomość nie pochodzi od osoby, z którą aktualnie piszemy
             if (!sender.equals(currentChatUser)) {
                 unreadSenders.add(sender);
-                usersListView.refresh(); // Ważne: Odśwież listę, aby pokazać zmianę
+                usersListView.refresh();
             }
-
             conversations.putIfAbsent(sender, javafx.collections.FXCollections.observableArrayList());
             ObservableList<String> chatHistory = conversations.get(sender);
             chatHistory.add(sender + ": " + content);
@@ -159,15 +145,6 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
         Platform.runLater(() -> {
             users.setAll(updatedUsers); //
         });
-    }
-
-
-    private String getSelectedRecipient() {
-        User selected = usersListView.getSelectionModel().getSelectedItem(); //
-        if (selected != null) {
-            return selected.getUsername(); //
-        }
-        return null;
     }
 }
 

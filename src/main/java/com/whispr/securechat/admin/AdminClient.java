@@ -12,15 +12,10 @@ import javax.crypto.spec.IvParameterSpec;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.Base64;
-import java.util.Scanner;
 import java.util.Set;
-import com.google.gson.Gson;
-
-import static com.whispr.securechat.common.Constants.ADMIN_PASSWORD;
 import static com.whispr.securechat.common.MessageType.*;
 import static com.whispr.securechat.security.RSAEncryptionUtil.encryptRSA;
 
@@ -77,7 +72,6 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             LoginPayload payload = new LoginPayload(username, password, publicKeyB64); // Use constructor that includes the key
             String jsonPayload = new Gson().toJson(payload);
 
-            // This part remains the same
             IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
             String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesAdminKey, IV);
 
@@ -122,8 +116,6 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
 
             case SERVER_INFO:
             case ERROR:
-                // Obsługujemy zarówno SERVER_INFO (sukces) jak i ERROR (porażka logowania).
-                // W obu przypadkach payload jest zaszyfrowany.
                 try {
                     String decryptedMessage = decryptedPayload(message);
                     System.out.println("AdminClient received decrypted message: " + decryptedMessage);
@@ -135,7 +127,6 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                     if (decryptedMessage.equals("AES key received successfully. Session ready!")) {
                         listener.onSessionReady();
                     } else if (messageType == SERVER_INFO) {
-                        // Zakładamy, że inny SERVER_INFO to potwierdzenie udanego logowania.
                         listener.onLoginResponse(true, decryptedMessage);
                     } else { // messageType == ERROR
                         listener.onLoginResponse(false, decryptedMessage);
@@ -300,28 +291,4 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
     public void setListener(AdminClientListener listener) {
         this.listener = listener;
     }
-
 }
-
-//    public static void main(String[] args) throws Exception {
-//        System.out.println("--- AdminClient Test ---");
-//        AdminClient adminClient = new AdminClient("localhost");
-//
-//        // 1. Nawiąż połączenie i poczekaj na wymianę kluczy
-//        adminClient.connect();
-//        System.out.println("Connecting and performing key exchange...");
-//        Thread.sleep(1000); // Dajmy sekundę na wymianę kluczy RSA/AES
-//
-//        // 2. Pobierz dane logowania z konsoli
-//        Scanner scanner = new Scanner(System.in);
-//        System.out.print("Enter admin username: ");
-//        String username = scanner.nextLine();
-//        System.out.print("Enter admin password: ");
-//        String password = scanner.nextLine();
-//        scanner.close();
-//
-//        // 3. Wyślij prośbę o zalogowanie
-//        System.out.println("Sending login request for user: " + username);
-//        adminClient.sendAdminLogin(username, password);
-//    }
-//}

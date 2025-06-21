@@ -1,7 +1,5 @@
 package com.whispr.securechat.client.gui;
 
-
-import com.whispr.securechat.admin.gui.AdminPanelController;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -43,8 +41,7 @@ public class MainApplication extends Application implements LoginController.Logi
             }
         });
     }
-    public void showLoginScreen() throws Exception {
-        // Ładowanie FXML ekranu logowania i ustawianie kontrolera
+    public void showLoginScreen(){
         try {
             System.out.println("Loading login screen...");
             URL fxmlLocation = MainApplication.class.getResource("/com/whispr/securechat/client/gui/Login.fxml");
@@ -78,7 +75,6 @@ public class MainApplication extends Application implements LoginController.Logi
 
 
     public void showChatScreen() throws Exception {
-        // Ładowanie FXML ekranu czatu i ustawianie kontrolera
         URL fxmlLocation = MainApplication.class.getResource("/com/whispr/securechat/client/gui/ClientPanel.fxml");
         FXMLLoader loader = new FXMLLoader(fxmlLocation);
         Parent root = loader.load();
@@ -105,7 +101,6 @@ public class MainApplication extends Application implements LoginController.Logi
 
     @Override
     public void stop() {
-        // Zamykanie połączenia z serwerem po zamknięciu aplikacji
         if (chatClient != null) {
             chatClient.disconnect();
         }

@@ -3,16 +3,13 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 import static com.whispr.securechat.common.Constants.AES_ALGORITHM;
 
 public class AESEncryptionUtil {
     private static final int KEY_LENGTH = 256;
-    public static SecretKey generateAESKey() throws Exception {
+    public static SecretKey generateAESKey() {
         // Tworzenie klucza AES
         try {
             KeyGenerator keyGen = KeyGenerator.getInstance("AES");
@@ -23,7 +20,7 @@ public class AESEncryptionUtil {
             return null;
         }
     }
-    public static IvParameterSpec  generateIVParameterSpec() throws Exception {
+    public static IvParameterSpec  generateIVParameterSpec() {
         try {
             SecureRandom random = new SecureRandom();
             byte[] ivBytes = new byte[16];
@@ -42,7 +39,6 @@ public class AESEncryptionUtil {
         // Szyfrowanie danych
         Cipher  c =Cipher.getInstance(AES_ALGORITHM);
         c.init(Cipher.ENCRYPT_MODE, aesKey,iv);
-//        return ; // Zwróci zaszyfrowane dane
         return Base64.getEncoder().encodeToString(c.doFinal(data));
     }
     public static String decrypt(String encryptedData, SecretKey aesKey, IvParameterSpec iv2) throws Exception {

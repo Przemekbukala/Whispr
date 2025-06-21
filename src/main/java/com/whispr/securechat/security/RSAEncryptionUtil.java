@@ -6,7 +6,7 @@ import java.util.Base64;
 import static com.whispr.securechat.common.Constants.RSA_ALGORITHM;
 
 public class RSAEncryptionUtil {
-    public static KeyPair generateRSAKeyPair() throws Exception {
+    public static KeyPair generateRSAKeyPair() {
         // Generowanie pary kluczy RSA
         try {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");

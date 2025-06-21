@@ -1,12 +1,8 @@
 package com.whispr.securechat.server.networking;
 
-
 import java.io.IOException;
 import java.net.Socket;
-//import java.io.BufferedReader; // Jeśli używasz BufferedReader/PrintWriter
-//import java.io.PrintWriter;    // Jeśli używasz BufferedReader/PrintWriter
 import com.google.gson.Gson;
-
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import javax.crypto.SecretKey;
@@ -55,10 +51,9 @@ public class ClientHandler implements Runnable {
             while (true) {
                 try {
                     Message message = (Message) objectIn.readObject();
-//                    System.out.println(message);
                     if (message != null) {
                         try {
-                            handleMessage(message); // Przekieruj do obsługi wiadomości
+                            handleMessage(message);
                         } catch (Exception e) {
                             System.err.println("Error handling message!");
                             break;
@@ -66,7 +61,6 @@ public class ClientHandler implements Runnable {
                         System.out.println(message);
                     }
                 } catch (IOException e) {
-                    // This block is now correct
                     String clientIdentifier = (username != null) ? username : "unauthenticated client";
                     System.err.println("Client " + clientIdentifier + " @ " + clientSocket.getInetAddress().getHostAddress() + " disconnected.");
                     server.getClientManager().broadcastLogToAdmins("Client '" + clientIdentifier + "' disconnected.");
@@ -99,29 +93,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-
-    //probably two layers of encrytpion
-    // szyfruje i wysyła wiadomosc
-//    public void sendMessage(Message message) throws Exception {
-//        // Wysyła wiadomość do tego klienta, ktora nie jest zaszyfrowana więc szyfrujemy
-//
-//        if (!clientSocket.isClosed() && objectOut != null) {
-//            if (message.getType() == MessageType.CHAT_MESSAGE) {
-//                IvParameterSpec IV = AESEncryptionUtil.generateIVParameterSpec();
-//                String contentToEncrypt = message.getPayload();
-//                String encrypted_data = AESEncryptionUtil.encrypt(contentToEncrypt.getBytes(), this.aesKey, IV);
-//                message.setPayload(encrypted_data);
-//                message.setEncryptedIv(IV.getIV());
-//                message.setTimestamp(System.currentTimeMillis());
-//            }
-//            objectOut.writeObject(message);
-//            objectOut.flush();
-//        } else {
-//            System.err.println("Attempted to send a message to a closed socket for user: " + username);
-//        }
-//
-//    }
-
     public void sendMessage(Message message) throws Exception {
         if (!clientSocket.isClosed() && objectOut != null) {
             objectOut.writeObject(message);
@@ -131,7 +102,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public String getUsername() { /* ... */
+    public String getUsername() {
         return username;
     }
 
@@ -139,12 +110,8 @@ public class ClientHandler implements Runnable {
         this.username = username;
     }
 
-    public SecretKey getAesKey() { /* ... */
+    public SecretKey getAesKey() {
         return aesKey;
-    }
-
-    public void setAesKey(SecretKey aesKey) {
-        this.aesKey = aesKey;
     }
 
     public Socket getClientSocket() {
@@ -195,26 +162,6 @@ public class ClientHandler implements Runnable {
         }
 
         switch (message.getType()) {
-//            case USER_LIST_REQUEST:
-//                // TYMCZASowe roziwazanie generalnei jest problem abloweim jak odaplisz dwa razy main  application to tylko jedeen uzytwkoink wiidzi uzytkwonikow zalagowanych
-//                //wiec zrobiłem guzik refresh ktory wyslya do serwera prosbe o to  niestety aktualizuje do wsyztskich wiec trzbea do zmienic
-//                Set<User> userList = server.getClientManager().getLoggedInUsers();
-//                String jsonPayload = new Gson().toJson(userList);
-//                IvParameterSpec iv2 = AESEncryptionUtil.generateIVParameterSpec();
-//                String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv2);
-//                Message userListMessage = new Message(
-//                        MessageType.USER_LIST_UPDATE,
-//                        "server",
-//                        username,
-//                        encryptedPayload,
-//                        iv2.getIV(),
-//                        System.currentTimeMillis()
-//                );
-//                sendMessage(userListMessage);
-//                break;
-//
-//
-
             case PUBLIC_KEY_EXCHANGE:
                 try {
                     String clientRSA = message.getPayload();
@@ -222,7 +169,7 @@ public class ClientHandler implements Runnable {
                     System.out.println("Received and saved the RSA public key from the client: ");
                 } catch (Exception e) {
                     System.err.println("Error while decoding client's public key:" + e.getMessage());
-                    throw e; // Rzuć wyjątek dalej, aby obsłużyć błąd w pętli run()
+                    throw e;
                 }
                 sendPublicRSAKey(server.getServerRSAPublicKey());
                 break;
@@ -230,11 +177,9 @@ public class ClientHandler implements Runnable {
                 handleLogout();
                 break;
             case LOGIN:
-                // Tutaj logika logowania
                 handleLogin(message);
                 break;
             case REGISTER:
-                // Tutaj logika rejestracji
                 handleRegistration(message);
                 break;
             case CHAT_MESSAGE:
@@ -243,14 +188,12 @@ public class ClientHandler implements Runnable {
                         + " to " + message.getRecipient());
                 server.getClientManager().forwardMessage(message);
                 break;
-//                processChatMessage(message);
             case E2E_PUBLIC_KEY_REQUEST:
                 handlePublicKeyRequest(message);
                 break;
             case ADMIN_LOGIN:
                 handleAdminLogin(message);
                 break;
-            // ... inne przypadki
             case AES_KEY_EXCHANGE:
                 try {
                     String encryptedAesKeyBase64 = message.getPayload();
@@ -323,7 +266,6 @@ public class ClientHandler implements Runnable {
                 break;
             // TU moze dodac waidomosc do klienta ze otryzmal to co chciał
             default:
-                // Co zrobić, gdy serwer otrzyma nieznany typ wiadomości?
                 System.err.println("Received unknow message type: " + message.getType());
         }
     }
@@ -413,7 +355,6 @@ public class ClientHandler implements Runnable {
                 server.getClientManager().broadcastLogToAdmins("Failed login attempt for username: '" + username + "'.");
             }
         } catch (Exception e) {
-            // This catch block will now correctly handle errors
             System.err.println("Error during login process for user: " + username);
             e.printStackTrace();
             try {
@@ -532,7 +473,6 @@ public class ClientHandler implements Runnable {
 
             boolean wasLoginSuccessful = server.getDbManager().verifyAdminCredentials(adminUsername, password);
             if (wasLoginSuccessful) {
-                // If login is successful, update the user's public key in the database
                 log.info("Admin authentication successful for: {}", adminUsername);
 
                 this.isAdmin = true;
@@ -576,7 +516,6 @@ public class ClientHandler implements Runnable {
                 sendMessage(loginRejectionMessage);
             }
         } catch (Exception e) {
-            // This catch block will now correctly handle errors
             log.error("Error during admin login process for: {}", adminUsername, e);
             System.err.println("Error during login process for admin: " + adminUsername);
             e.printStackTrace();

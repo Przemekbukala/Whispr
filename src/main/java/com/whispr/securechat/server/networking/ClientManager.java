@@ -13,7 +13,6 @@ import javax.crypto.spec.IvParameterSpec;
 import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
 
 public class ClientManager {
-    // Mapuje login użytkownika na jego ClientHandler
     private ConcurrentHashMap<String, ClientHandler> loggedInClients;
     private final Map<String, ClientHandler> loggedInAdmins;
 
@@ -32,7 +31,6 @@ public class ClientManager {
     }
 
     public void removeClient(String username) {
-        // Usuwa klienta po wylogowaniu/rozłączeniu
         loggedInClients.remove(username);
         notifyClientsOfUserListChange();
     }
@@ -96,11 +94,9 @@ public class ClientManager {
     }
 
     private void notifyUserListChangedForAdmin() {
-        // Pobieramy listę, której potrzebujemy
         Set<User> onlineUsers = getLoggedInUsers();
         String jsonPayload = new Gson().toJson(onlineUsers);
 
-        // Iterujemy po adminach i wysyłamy aktualizacje (ta część jest poprawna i zostaje)
         for (ClientHandler adminHandler : loggedInAdmins.values()) {
             try {
                 IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();

@@ -1,7 +1,5 @@
 package com.whispr.securechat.common;
 
-// Nie musi implementować Serializable, bo serializujemy ją do JSON (String)
-// za pomocą Gson, a nie jako obiekt Javy.
 public class LoginPayload {
     private final String username;
     private final String password;
@@ -28,6 +26,7 @@ public class LoginPayload {
     public LoginPayload(String username, String password) {
         this(username, password, null);
     }
+    //TODO najprawdopodobniej do usuniecia
 
     public String getUsername() {
         return username;

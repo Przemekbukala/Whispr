@@ -17,7 +17,7 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
     @FXML
     private Label statusLabel; // Etykieta do wyświetlania komunikatów o błędach/sukcesie
     private LoginSuccessHandler loginSuccessHandler;
-    private ChatClient chatClient; // Referencja do instancji ChatClient
+    private ChatClient chatClient;
     private boolean isSessionReady = false;
 
     public void setChatClient(ChatClient client) {
@@ -28,7 +28,6 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
 
     @FXML
     private void initialize() {
-        // Połącz i rozpocznij wymianę kluczy zaraz po inicjalizacji
         new Thread(() -> {
             try {
                 Platform.runLater(() -> showMessage("Connecting to server...", false));
@@ -40,7 +39,6 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
         }).start();
     }
 
-    // interface used if login is succesed
     public interface LoginSuccessHandler {
         void onLoginSuccess(ChatClient client);
     }
@@ -68,15 +66,6 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
                 Platform.runLater(() -> showMessage("Login error: " + e.getMessage(), true));
             }
         }).start();
-    }
-
-    // to make code simpler
-    private void performKeyExchange() throws Exception {
-        chatClient.connect();
-        chatClient.sendClientPublicRSAKey();
-        Thread.sleep(500);
-        chatClient.sendClientAESKey();
-        Thread.sleep(500);
     }
 
     @FXML
@@ -116,7 +105,6 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
         Platform.runLater(() -> showMessage("Session setup failed: " + reason, true));
     }
 
-    // Metody z interfejsu AuthListener
     @Override
     public void onLoginSuccess() {
         Platform.runLater(() -> {

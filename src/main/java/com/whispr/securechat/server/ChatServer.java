@@ -7,20 +7,13 @@ import java.net.Socket;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.concurrent.ExecutorService; // Do zarządzania pulą wątków
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.whispr.securechat.common.Message;
-import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
 import com.whispr.securechat.server.networking.ClientHandler;
 import com.whispr.securechat.database.DatabaseManager;
 import com.whispr.securechat.server.networking.ClientManager;
-
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-
 import static com.whispr.securechat.common.Constants.MAX_CLIENTS;
 import static com.whispr.securechat.common.Constants.SERVER_PORT;
 
@@ -80,7 +73,6 @@ public class ChatServer {
                         clientSocket.close();
                         continue;
                     }
-//                    clientManager.addClient(clientSocket.getInetAddress().getHostAddress(), clientHandler);
                     clientThreadPool.execute(clientHandler);
                 } catch (IOException e) {
                     System.err.println("Error accepting or handling client connection: " + e.getMessage());
@@ -100,7 +92,6 @@ public class ChatServer {
     }
 
     public void stop() {
-        // Zatrzymuje serwer i zamyka wszystkie połączenia
         running = false;
         try {
             if (serverSocket != null) serverSocket.close();
@@ -111,7 +102,6 @@ public class ChatServer {
         }
     }
 
-    // Metody pomocnicze (np. do obsługi logiki serwera przekazywanej z ClientHandler)
     public ClientManager getClientManager() { /* ... */
         return this.clientManager;
     }
@@ -128,16 +118,4 @@ public class ChatServer {
         return running;
     }
 
-    public static ChatServer getInstance() {
-        return instance;
-    }
-
-
-
-
-    // dodałem tylko maina do testów
-    public static void main(String[] args) throws Exception {
-        ChatServer obj = new ChatServer();
-        obj.start();
-    }
 }

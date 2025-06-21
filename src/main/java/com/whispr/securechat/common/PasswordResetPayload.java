@@ -1,6 +1,5 @@
 package com.whispr.securechat.common;
 
-
 public class PasswordResetPayload {
     private final String username;
     private final String newPassword;

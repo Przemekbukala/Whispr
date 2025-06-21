@@ -1,11 +1,8 @@
-// src/main/java/com/whispr/securechat/database/PasswordHasher.java
 package com.whispr.securechat.database;
-
-import org.mindrot.jbcrypt.BCrypt; // Import biblioteki BCrypt
+import org.mindrot.jbcrypt.BCrypt;
 
 public class PasswordHasher {
 
-    // Metoda do haszowania hasła
     public static String hashPassword(String password) {
         // BCrypt.hashpw(password, BCrypt.gensalt()) generuje sól i haszuje hasło
         // gensalt() automatycznie generuje odpowiednią sól.

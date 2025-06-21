@@ -1,4 +1,3 @@
-// Plik: src/main/java/com/whispr/securechat/setup/OneTimeAdminSetup.java
 package com.whispr.securechat.setup;
 
 import com.whispr.securechat.database.DatabaseManager;
@@ -22,7 +21,7 @@ public class OneTimeAdminSetup {
 
         // Admin credentials
         String adminUsername = "admin";
-        String adminPassword = "1234"; // Użyj silnego hasła
+        String adminPassword = "1234";
 
         try {
 

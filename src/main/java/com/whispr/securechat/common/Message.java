@@ -1,16 +1,7 @@
 package com.whispr.securechat.common;
 
 import java.io.Serializable;
-import java.security.KeyPair;
-
 import com.google.gson.annotations.SerializedName;
-import com.whispr.securechat.security.AESEncryptionUtil;
-
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-
-import static com.whispr.securechat.security.RSAEncryptionUtil.generateRSAKeyPair;
 
 public class Message implements Serializable {
     @SerializedName("type")
@@ -77,7 +68,6 @@ public class Message implements Serializable {
 
     public void setTimestamp(long timestamp) {this.timestamp = timestamp;}
 
-    // Zastąp starą metodę toString() tą poniżej:
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("Message{");
@@ -85,7 +75,6 @@ public class Message implements Serializable {
         sb.append(", sender='").append(sender).append('\'');
         sb.append(", recipient='").append(recipient).append('\'');
 
-        // ukrywanie payload
         if (payload != null && (type == MessageType.PUBLIC_KEY_EXCHANGE || type == MessageType.AES_KEY_EXCHANGE || payload.length() > 70)) {
             sb.append(", payload=<hidden_long_payload>");
         } else {

@@ -11,17 +11,12 @@ import java.nio.charset.StandardCharsets;
 import com.whispr.securechat.common.Message;
 
 import static com.whispr.securechat.common.MessageType.CHAT_MESSAGE;
-//import com.google.gson.Gson; // Przykładowa biblioteka do JSON [cite: 63]
 
 public class ClientNetworkManager implements Runnable {
         public Socket socket;
         public BufferedReader stdin;
         private ObjectOutputStream objectOut;
         private ObjectInputStream objectIn;
-
-    //    private Gson gson; // Instancja Gson do serializacji/deserializacji JSON
-
-        // Callback do ChatClient, gdy wiadomość zostanie odebrana
         private MessageReceiver messageReceiver;
         private ConnectionStatusNotifier statusNotifier;
 
@@ -45,14 +40,12 @@ public class ClientNetworkManager implements Runnable {
         }
 
         public synchronized void  sendData(Message message) throws Exception {
-            // Serializuje obiekt Message do JSON i wysyła przez socket
                         objectOut.writeObject(message);
                         objectOut.flush();
                         System.out.println("Klient: " + message);
         }
         @Override
         public void run() {
-            // Główna pętla wątku, odczytująca wiadomości od serwera
             try {
                 while (!socket.isClosed()) {
                     // Odczyt obiektu typu Message
@@ -70,9 +63,6 @@ public class ClientNetworkManager implements Runnable {
                         } else {
                             System.err.println("No message recipient set (messageReceiver == null)");
                         }
-
-                        // W przyszłosci tutaj trzeba dodać  przekazanie do GUI lub listenera.
-
                     } else {
                         System.err.println("A non-Message object was received: " + obj.getClass());
                     }
@@ -86,7 +76,6 @@ public class ClientNetworkManager implements Runnable {
             } catch (ClassNotFoundException e) {
                 System.err.println("Unknown class of object received from server.");
             } finally {
-                // zamyka zasoby po zakończeniu połaczenia
                 close();
             }
         }

@@ -118,4 +118,8 @@ public class ChatServer {
         return running;
     }
 
+    public static void main(String[] args) throws Exception {
+        ChatServer obj = new ChatServer();
+        obj.start();
+    }
 }

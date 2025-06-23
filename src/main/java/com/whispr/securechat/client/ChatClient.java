@@ -16,35 +16,47 @@ import com.whispr.securechat.client.networking.ClientNetworkManager;
 import com.whispr.securechat.common.*;
 import com.whispr.securechat.security.AESEncryptionUtil;
 import com.whispr.securechat.security.RSAEncryptionUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.whispr.securechat.common.MessageType.*;
 import static com.whispr.securechat.security.RSAEncryptionUtil.*;
 
-
+/**
+ * The core logic class for the client-side of the Whispr application.
+ * This class manages the network connection, cryptographic keys, user session,
+ * and the logic for sending and receiving messages. It interacts with the GUI controllers
+ * to provide updates and handle user actions.
+ */
 public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier {
-    private String serverAddress;
-    private int serverPort;
+    private final String serverAddress;
+    private final int serverPort;
     private ClientNetworkManager networkManager;
     private String username;
-    private SecretKey aesKey; // Klucz AES dla sesji klienta
-    private KeyPair rsaKeyPair; // Para kluczy RSA klienta
-    private PublicKey serverRSAPublicKey; // Klucz publiczny RSA serwera
-    // Callbacki dla GUI (lub event bus)
+    private final SecretKey aesKey; // Client-Server session key
+    private final KeyPair rsaKeyPair; // Client's own RSA key pair
+    private PublicKey serverRSAPublicKey; // Server's public key for establishing the secure session
     private MessageReceivedListener messageListener;
     private UserListListener userListListener;
     private ConnectionStatusListener connectionStatusListener;
     private boolean clientPublicKeySent = false;
     private boolean clientAESKeySent = false;
-    private ConcurrentHashMap<String, SecretKey> conversationKeys;
-    private ConcurrentHashMap<String, PublicKey> userPublicKeys;
+    private final ConcurrentHashMap<String, SecretKey> conversationKeys; // E2E encryption keys: maps a recipient's username to the shared AES key
+    private final ConcurrentHashMap<String, PublicKey> userPublicKeys; // Caches the public keys of other users for starting E2E sessions
     private final Gson gson = new Gson();
-    private Map<String, Queue<String>> pendingMessages;
+    private final Map<String, Queue<String>> pendingMessages;
     private ErrorListener errorListener;
     private SessionStateListener sessionListener;
     private AuthListener authListener;
     private KickedListener kickedListener;
     private Set<User> bufferedUserList = null;
+    private static final Logger clientLog = LoggerFactory.getLogger(ChatClient.class);
 
+    /**
+     * Constructs a new ChatClient.
+     * @param serverAddress The IP address or hostname of the chat server.
+     * @param serverPort The port number of the chat server.
+     */
     public ChatClient(String serverAddress, int serverPort) {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
@@ -52,75 +64,89 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         this.conversationKeys = new ConcurrentHashMap<>();
         this.userPublicKeys = new ConcurrentHashMap<>();
         this.pendingMessages = new ConcurrentHashMap<>();
-        setConnectionStatusListener(creatConnectionStatusListener());
+        setConnectionStatusListener(connected -> {
+            if (connected) {
+                clientLog.info("Connection to server established.");
+            } else {
+                clientLog.warn("Disconnected from server.");
+            }
+        });
         try {
             this.rsaKeyPair = RSAEncryptionUtil.generateRSAKeyPair();
             this.aesKey = AESEncryptionUtil.generateAESKey();
         } catch (Exception e) {
+            // REVIEW: Throwing a RuntimeException here is acceptable for a critical startup failure.
+            // Logging it provides more context.
+            clientLog.error("FATAL: Could not generate cryptographic keys.", e);
             throw new RuntimeException(e);
         }
     }
 
-    public static void main(String[] args) {
-        ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
-        try {
-            client.connect();
-            client.sendClientPublicRSAKey();
-            Thread.sleep(500); // Give time for key exchange
-            client.sendClientAESKey();
-            System.out.println("Secure session with server established.");
-            Thread.sleep(500);
+//    public static void main(String[] args) {
+//        ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
+//        try {
+//            client.connect();
+//            client.sendClientPublicRSAKey();
+//            Thread.sleep(500); // Give time for key exchange
+//            client.sendClientAESKey();
+//            System.out.println("Secure session with server established.");
+//            Thread.sleep(500);
+//
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+//            while (true) {
+//                System.out.println("Enter 'register' or 'login':");
+//                String action = reader.readLine();
+//
+//                if ("register".equalsIgnoreCase(action)) {
+//                    System.out.println("Enter username:");
+//                    String username = reader.readLine();
+//                    System.out.println("Enter password:");
+//                    String password = reader.readLine();
+//                    client.register(username, password);
+//                    // In a real app, you'd wait for a success message.
+//                    // For this test, we'll just try to log in next.
+//                    System.out.println("Registration request sent. Please restart and log in.");
+//                    return;
+//                } else if ("login".equalsIgnoreCase(action)) {
+//                    System.out.println("Enter username:");
+//                    String username = reader.readLine();
+//                    System.out.println("Enter password:");
+//                    String password = reader.readLine();
+//                    client.login(username, password);
+//                    break;
+//                } else {
+//                    System.out.println("Invalid action. Use 'register' or 'login'.");
+//                }
+//            }
+//
+//            System.out.println("\nEnter messages in the format 'recipient:message'. Type 'exit' to quit.");
+//            while (true) {
+//                String line = reader.readLine();
+//                if (line == null || "exit".equalsIgnoreCase(line)) {
+//                    client.disconnect();
+//                    break;
+//                }
+//
+//                String[] parts = line.split(":", 2);
+//                if (parts.length == 2) {
+//                    String recipient = parts[0].trim();
+//                    String messageText = parts[1].trim();
+//                    client.sendMessage(recipient, messageText);
+//                } else {
+//                    System.out.println("Invalid format. Use 'recipient:message'.");
+//                }
+//            }
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            while (true) {
-                System.out.println("Enter 'register' or 'login':");
-                String action = reader.readLine();
-
-                if ("register".equalsIgnoreCase(action)) {
-                    System.out.println("Enter username:");
-                    String username = reader.readLine();
-                    System.out.println("Enter password:");
-                    String password = reader.readLine();
-                    client.register(username, password);
-                    // In a real app, you'd wait for a success message.
-                    // For this test, we'll just try to log in next.
-                    System.out.println("Registration request sent. Please restart and log in.");
-                    return;
-                } else if ("login".equalsIgnoreCase(action)) {
-                    System.out.println("Enter username:");
-                    String username = reader.readLine();
-                    System.out.println("Enter password:");
-                    String password = reader.readLine();
-                    client.login(username, password);
-                    break;
-                } else {
-                    System.out.println("Invalid action. Use 'register' or 'login'.");
-                }
-            }
-
-            System.out.println("\nEnter messages in the format 'recipient:message'. Type 'exit' to quit.");
-            while (true) {
-                String line = reader.readLine();
-                if (line == null || "exit".equalsIgnoreCase(line)) {
-                    client.disconnect();
-                    break;
-                }
-
-                String[] parts = line.split(":", 2);
-                if (parts.length == 2) {
-                    String recipient = parts[0].trim();
-                    String messageText = parts[1].trim();
-                    client.sendMessage(recipient, messageText);
-                } else {
-                    System.out.println("Invalid format. Use 'recipient:message'.");
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
+    /**
+     * Connects the client to the server.
+     * Initializes the {@link ClientNetworkManager} and starts its listening thread.
+     * @throws Exception if the connection fails.
+     */
     public void connect() throws Exception {
         this.networkManager = new ClientNetworkManager(new Socket(serverAddress, serverPort));
         this.networkManager.setMessageReceiver(this::handleIncomingMessage);
@@ -135,14 +161,23 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
     }
 
+    /**
+     * Sends a chat message to a specific recipient.
+     * If an E2E session is not yet established with the recipient, it initiates one first
+     * and queues the message to be sent upon successful key exchange.
+     * Otherwise, it encrypts the message with the established E2E AES key and sends it.
+     *
+     * @param recipient The username of the message recipient.
+     * @param messageToSend The plaintext message content.
+     * @throws Exception if sending the message fails.
+     */
     public void sendMessage(String recipient, String messageToSend) throws Exception {
         if (!conversationKeys.containsKey(recipient)) {
+            clientLog.info("No secure E2E session with '{}'. Initiating key exchange.", recipient);
             //TODO disable send button until the exchange is complete
             System.out.println("No secure session with " + recipient + ". Initiating...");
             pendingMessages.computeIfAbsent(recipient, k -> new LinkedList<>()).add(messageToSend);
             initiateSecureSession(recipient);
-            //TODO check if handshake is completed
-//            Thread.sleep(1000);
             return;
         }
 
@@ -161,8 +196,15 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
         networkManager.sendData(message);
         System.out.println("Sent E2E encrypted message to: " + recipient);
+        clientLog.info("Sent E2E encrypted message to: {}", recipient);
     }
 
+    /**
+     * Initiates a secure E2E session with another user.
+     * It sends a request to the server for the recipient's public RSA key.
+     * @param recipient The username of the user to establish a session with.
+     * @throws Exception if the request fails.
+     */
     public void initiateSecureSession(String recipient) throws Exception {
         Message publicKeyRequest = new Message(
                 E2E_PUBLIC_KEY_REQUEST,
@@ -174,6 +216,9 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         networkManager.sendData(publicKeyRequest);
     }
 
+    /**
+     * Disconnects the client from the server and cleans up resources.
+     */
     public void disconnect() {
         if (networkManager != null) {
             networkManager.close();
@@ -187,6 +232,11 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     }
 
+    /**
+     * Sends the client's public RSA key to the server.
+     * This is the first step in establishing the secure client-server session.
+     * @throws Exception if sending the key fails.
+     */
     public synchronized void sendClientPublicRSAKey() throws Exception {
         if (rsaKeyPair == null || rsaKeyPair.getPublic() == null) {
             System.err.println("Client public key could not be found.");
@@ -210,6 +260,11 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     }
 
+    /**
+     * Generates an AES session key, encrypts it with the server's public RSA key,
+     * and sends it to the server. This completes the client-server session setup.
+     * @throws Exception if the server's public key is not available or sending fails.
+     */
     public synchronized void sendClientAESKey() throws Exception {
         if (aesKey == null) {
             System.err.println("AES key is empty");
@@ -365,7 +420,8 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
                     System.out.println("ChatClient: Received USER_LIST_UPDATE, payload: " + jsonPayload);
 
-                    java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<User>>() {}.getType();
+                    java.lang.reflect.Type userSetType = new com.google.gson.reflect.TypeToken<java.util.Set<User>>() {
+                    }.getType();
                     java.util.Set<User> users = gson.fromJson(jsonPayload, userSetType);
                     users.removeIf(user -> user.getUsername().equals(this.username));
 
@@ -450,12 +506,20 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         return decryptedPayload;
     }
 
-    // Interfejsy dla listenerów (lub osobne pliki)
+    /**
+     * A listener for incoming chat messages.
+     */
     public interface MessageReceivedListener {
         void onMessageReceived(String sender, String content);
     }
 
-    //
+    /**
+     * Logs the user in.
+     * Encrypts login credentials with the client-server session key and sends them.
+     * @param username The username.
+     * @param password The password.
+     * @throws Exception if the login request fails.
+     */
     public void login(String username, String password) throws Exception {
         this.username = username; // Set username for the session
         String publicKeyB64 = Base64.getEncoder().encodeToString(this.rsaKeyPair.getPublic().getEncoded());
@@ -476,6 +540,13 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         networkManager.sendData(loginMessage);
     }
 
+    /**
+     * Registers a new user account.
+     * Sends the username, password, and the client's public RSA key to the server.
+     * @param username The desired username.
+     * @param password The password for the new account.
+     * @throws Exception if the registration request fails.
+     */
     public void register(String username, String password) throws Exception {
         this.username = username;
         // Encode the client's public RSA key to send during registration
@@ -576,6 +647,9 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
     }
 
+    /**
+     * A listener for updates to the online user list.
+     */
     public interface UserListListener {
         void onUserListUpdated(Set<User> users);
     }
@@ -595,6 +669,9 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         void onSessionFailed(String reason);
     }
 
+    /**
+     * A listener for authentication-related events (login/register success or failure).
+     */
     public interface AuthListener {
         void onLoginSuccess();
 

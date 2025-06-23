@@ -25,8 +25,11 @@ dependencies {
     implementation 'org.mindrot:jbcrypt:0.4'
     implementation 'ch.qos.logback:logback-classic:1.5.13'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.3'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.3'
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
+    testImplementation 'org.assertj:assertj-core:3.26.3'
 }
 
 //JAVA FX
@@ -41,7 +44,16 @@ application {
 }
 
 test {
-    useJUnitPlatform()
+    // Użyj platformy JUnit 5 do uruchamiania testów.
+    useJUnitPlatform(){
+        version = '5.10.3'
+    }
+
+    // Skonfiguruj logowanie wyników testów w konsoli.
+    testLogging {
+        // Pokazuj status dla testów, które przeszły, zostały pominięte lub zakończyły się błędem.
+        events "passed", "skipped", "failed"
+    }
 }
 
 //CUSTOM RUN TASKS
@@ -78,19 +90,5 @@ tasks.register('setupAdmin', JavaExec) {
     group = 'Utilities' // Osobna grupa dla narzędzi
     description = 'Runs the one-time admin account setup'
     mainClass = 'com.whispr.securechat.setup.OneTimeAdminSetup'
-    classpath = sourceSets.main.runtimeClasspath
-}
-
-tasks.register('runRSAEncryptionUtil', JavaExec) {
-    group = 'Utilities'
-    description = 'Runs the RSA encryption test'
-    mainClass = 'com.whispr.securechat.security.RSAEncryptionUtil'
-    classpath = sourceSets.main.runtimeClasspath
-}
-
-tasks.register('runAESEncryptionUtil', JavaExec) {
-    group = 'Utilities'
-    description = 'Runs the AES encryption test'
-    mainClass = 'com.whispr.securechat.security.AESEncryptionUtil'
     classpath = sourceSets.main.runtimeClasspath
 }

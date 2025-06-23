@@ -6,8 +6,10 @@ public class LoginPayload {
     private final String publicKey;
 
     /**
-     * Constructor used for REGISTRATION, which includes the user's public key.
-     * @param username The user's desired username.
+     * Constructor used for both REGISTRATION and LOGIN.
+     * It includes the user's username, password, and public key.
+     * The public key is sent on every login to ensure the server always has the latest key.
+     * @param username The user's username.
      * @param password The user's password.
      * @param publicKey The user's public RSA key, encoded as a Base64 string.
      */
@@ -16,17 +18,6 @@ public class LoginPayload {
         this.password = password;
         this.publicKey = publicKey;
     }
-
-    /**
-     * Overloaded constructor used for LOGIN, which does not require a public key.
-     * It calls the main constructor, setting the public key to null.
-     * @param username The user's username.
-     * @param password The user's password.
-     */
-    public LoginPayload(String username, String password) {
-        this(username, password, null);
-    }
-    //TODO najprawdopodobniej do usuniecia
 
     public String getUsername() {
         return username;

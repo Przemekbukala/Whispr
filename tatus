@@ -1,0 +1,80 @@
+[33mcommit e47feaa3350aeb08e33e0984ddb8c2908ebf6fb1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-before-reset[m[33m, [m[1;31morigin/backup-before-reset[m[33m)[m
+Author: kmka330 <163684193+kmka330@users.noreply.github.com>
+Date:   Sat Jun 14 13:42:27 2025 +0200
+
+    Upadated logic behind Admin
+
+[33mcommit 2f08ac08ec325e5324b14fa51fd2ad9d05a6ebf2[m
+Author: kmka330 <163684193+kmka330@users.noreply.github.com>
+Date:   Sat Jun 14 13:23:12 2025 +0200
+
+    Implement payload decryption on client-side
+    
+    AdminClient now decrypts incoming message payloads using the session AES key. Added logic to check the content of SERVER_INFO messages to correctly distinguish the session-ready confirmation from other server messages.
+
+[33mcommit ff5c9e44e584bfa24f0eef20bd3a467a1fd84f94[m
+Author: kmka330 <163684193+kmka330@users.noreply.github.com>
+Date:   Fri Jun 13 23:45:05 2025 +0200
+
+    Implement secure network client and refactor admin UI
+    
+    Architectural Refactoring
+    
+    Refactored the Admin Panel from a direct-access application into a proper network client (AdminClient.java) that connects to the server via sockets.
+    Created a new com.whispr.securechat.admin package to cleanly separate the admin module from the server and the main chat client logic.
+    UI Simplification
+    
+    Replaced MaterialFX components with standard JavaFX controls (Button, ListView) to ensure functionality and simplify the UI ahead of the deadline.
+    Removed MaterialFX theme loading from AdminApplication to resolve configuration issues.
+    Security Implementation (Client & Server)
+    
+    Implemented a full, two-step secure handshake protocol for the admin session, mirroring the main client's security design.
+    AdminClient:
+    Generates its own RSA key pair upon creation.
+    Proactively sends its public RSA key to the server to initiate the key exchange.
+    Receives the server's public RSA key.
+    Generates a secret AES session key, encrypts it with the server's public RSA key, and sends it to the server.
+    ClientHandler (Server-side):
+    Added logic to handle AES_KEY_EXCHANGE messages.
+    Uses the server's private RSA key to decrypt the incoming AES key.
+    Stores the decrypted AES session key for secure communication throughout the admin's session.
+
+[33mcommit 829d7a9019f2f80b01620fde4cc1b5f3cb42e9b5[m
+Author: kmka330 <163684193+kmka330@users.noreply.github.com>
+Date:   Fri Jun 13 00:05:41 2025 +0200
+
+    Update AdminPanel.fxml
+    
+    Small update in visual
+
+[33mcommit e1d103d2b27f4a9471857104dfe35c9f2a98874f[m
+Author: kmka330 <163684193+kmka330@users.noreply.github.com>
+Date:   Thu Jun 12 23:56:59 2025 +0200
+
+    Admin Panel v0.1
+    
+    Primitive but working admin panel.
+
+[33mcommit 63c29ed6b7b9c0c9b2e7c32ca018d4fb3c3dc1d6[m
+Author: kmka330 <163684193+kmka330@users.noreply.github.com>
+Date:   Wed Jun 11 19:16:10 2025 +0200
+
+    Added one TODO
+
+[33mcommit ed9136243ce8ae5b4960394a7ff1f124d6332e0d[m
+Author: Przemysław Bukala <bukalaprzemyslaw@gmail.com>
+Date:   Wed Jun 11 00:29:12 2025 +0200
+
+    AES 1/2 POPRAWIONA WERSJA
+
+[33mcommit c18ec26fe117ada793bdfaeb8309626cd4be0ea8[m
+Author: Przemysław Bukala <bukalaprzemyslaw@gmail.com>
+Date:   Wed Jun 11 00:21:36 2025 +0200
+
+    AES 1/2
+
+[33mcommit 225f20678ed5ea6c3ed34a4a33694b4aff20bfd2[m
+Author: Przemysław Bukala <bukalaprzemyslaw@gmail.com>
+Date:   Wed Jun 11 00:11:43 2025 +0200
+
+    AES 1/2

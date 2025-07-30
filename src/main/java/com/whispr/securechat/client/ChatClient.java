@@ -257,7 +257,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
             case E2E_PUBLIC_KEY_RESPONSE:
                 try {
-                    String decryptedPayload = decryptedPayload(message);
+                    String decryptedPayload = EncryptionUtil.decryptedPayload(message,this.aesKey);
 
                     if (decryptedPayload == null) {
                         throw new Exception("Failed to decrypt payload for E2E_PUBLIC_KEY_RESPONSE");
@@ -269,8 +269,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
                     PublicKey userKey = RSAEncryptionUtil.decodePublicKey(publicKeyString);
                     userPublicKeys.put(targetUser, userKey);
-
-                    //weve public key - we need aes key
+                    //we've public key - we need aes key
                     SecretKey sharedAESKey = AESEncryptionUtil.generateAESKey();
                     assert sharedAESKey != null;
                     conversationKeys.put(targetUser, sharedAESKey);
@@ -347,7 +346,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 break;
             case USER_LIST_UPDATE:
                 try {
-                    String jsonPayload = decryptedPayload(message);
+                    String jsonPayload = EncryptionUtil.decryptedPayload(message,this.aesKey);;
                     if (jsonPayload == null || jsonPayload.isBlank()) {
                         System.err.println("Failed to decrypt user list update.");
                         break;
@@ -374,7 +373,7 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 break;
 
             case SERVER_INFO:
-                String serverMessage = decryptedPayload(message);
+                String serverMessage = EncryptionUtil.decryptedPayload(message,this.aesKey);;
                 if (serverMessage != null && serverMessage.startsWith("AES key received successfully")) {
                     if (sessionListener != null) {
                         sessionListener.onSessionEstablished();
@@ -386,23 +385,23 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 if (authListener != null) authListener.onLoginSuccess();
                 break;
             case LOGIN_FAILURE:
-                if (authListener != null) authListener.onLoginFailure(decryptedPayload(message));
+                if (authListener != null) authListener.onLoginFailure(EncryptionUtil.decryptedPayload(message,this.aesKey));
                 break;
             case REGISTER_SUCCESS:
                 if (authListener != null) authListener.onRegisterSuccess();
                 break;
             case REGISTER_FAILURE:
-                if (authListener != null) authListener.onRegisterFailure(decryptedPayload(message));
+                if (authListener != null) authListener.onRegisterFailure(EncryptionUtil.decryptedPayload(message,this.aesKey));
                 break;
             case ADMIN_KICK_NOTIFICATION:
-                String reason = decryptedPayload(message);
+                String reason = EncryptionUtil.decryptedPayload(message,this.aesKey);
                 if (kickedListener != null) {
                     kickedListener.onKicked(reason);
                 }
                 disconnect();
                 break;
             case ERROR:
-                String errorMessage = decryptedPayload(message);
+                String errorMessage = EncryptionUtil.decryptedPayload(message,this.aesKey);
                 System.err.println("ERROR from server: " + errorMessage);
                 if (authListener != null) {
                     if (errorMessage.contains("incorrect")) {
@@ -417,41 +416,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
 
     }
-/**
- * Decrypts the payload of a message using the client-server AES session key.
- *
- * <p>This method takes an encrypted message and uses the client's AES session key
- * along with the Initialization Vector (IV) contained in the message to decrypt
- * the payload. This is used for messages exchanged directly with the server.</p>
- *
- *
- * @param message The encrypted message to decrypt
- * @return The decrypted payload as a string, or null if decryption fails
- * @throws RuntimeException if a decryption error occurs
- * @deprecated This method should not be in ChatClient class.!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- */
- @Deprecated
-    public String decryptedPayload(Message message) {
-        if (this.aesKey == null) {
-            System.err.println("Brak klucza AES sesji");
-            return null;
-        }
-        byte[] ivBytes = message.getEncryptedIv();
-        if (ivBytes == null) {
-            System.err.println("Brak wektora IV w wiadomości.");
-            return null;
-        }
-        IvParameterSpec IV = new IvParameterSpec(ivBytes);
-        String decryptedPayload = null;
-        try {
-            decryptedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesKey, IV);
-        } catch (Exception e) {
-            System.err.println("Błąd podczas deszyfrowania wiadomości AES: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-        return decryptedPayload;
-    }
-
     /**
      * A listener for incoming chat messages.
      */

@@ -51,6 +51,8 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
         new Thread(() -> {
             try {
                 Platform.runLater(() -> showMessage("Connecting to server...", false));
+                usernameField.setOnAction(event -> passwordField.requestFocus());
+                passwordField.setOnAction(event -> handleLoginButtonAction());
                 chatClient.connect();
                 chatClient.sendClientPublicRSAKey(); // Start key exchange
             } catch (Exception e) {
@@ -125,7 +127,10 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
 
         new Thread(() -> {
             try {
-                Platform.runLater(() -> showMessage("Registering...", false));
+                Platform.runLater(()->{
+                    passwordField.clear();
+                    showMessage("Registering...", false);
+                });
                 chatClient.register(username, password);
             } catch (Exception e) {
                 Platform.runLater(() -> showMessage("Registration error: " + e.getMessage(), true));
@@ -188,7 +193,10 @@ public class LoginController implements ChatClient.SessionStateListener, ChatCli
      */
     @Override
     public void onLoginFailure(String reason) {
-        Platform.runLater(() -> showMessage("Login failed: " + reason, true));
+        Platform.runLater(()->{
+            passwordField.clear();
+            showMessage("Login failed: " + reason, true);
+        });
     }
 
     /**

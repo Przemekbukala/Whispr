@@ -142,7 +142,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             case SERVER_INFO:
             case ERROR:
                 try {
-                    String decryptedMessage = decryptedPayload(message);
+                    String decryptedMessage = EncryptionUtil.decryptedPayload(message,this.aesAdminKey);
                     System.out.println("AdminClient received decrypted message: " + decryptedMessage);
                     if (listener == null) {
                         System.err.println("AdminClient: Listener is not set, cannot dispatch message.");
@@ -168,7 +168,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             case ADMIN_LOG_MESSAGE:
                 if (listener != null) {
                     try {
-                        String logMessage = decryptedPayload(message);
+                        String logMessage = EncryptionUtil.decryptedPayload(message,this.aesAdminKey);
                         listener.onNewLogMessage(logMessage);
                     } catch (Exception e) {
                         System.err.println("Failed to decrypt log message from server.");
@@ -177,7 +177,7 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
                 break;
             case ADMIN_USER_LIST_UPDATE:
                 Gson gson = new Gson();
-                String decryptedPayload = decryptedPayload(message);
+                String decryptedPayload = EncryptionUtil.decryptedPayload(message,this.aesAdminKey);
                 Type userSetType = new TypeToken<Set<User>>() {
                 }.getType();
                 Set<User> users = gson.fromJson(decryptedPayload, userSetType);
@@ -251,37 +251,6 @@ public class AdminClient implements ClientNetworkManager.MessageReceiver {
             System.err.println("Error sending reset password request for " + username);
             e.printStackTrace();
         }
-    }
-
-    /**
-     * Decrypts the payload of a received message using the admin's AES key.
-     * This method extracts the initialization vector (IV) from the message and uses it along with the admin's AES key to decrypt the message payload
-     * and returns the decrypted content as a string.
-     *
-     * Note: This method could potentially be moved to the Message class with additional parameters!!!
-     * @param message The encrypted message to decrypt.
-     * @return The decrypted payload as a string, or null if decryption fails.
-     * @throws RuntimeException If an error occurs during decryption.
-     */
-    public String decryptedPayload(Message message) {
-        if (this.aesAdminKey == null) {
-            System.err.println("AES key not established. Cannot decrypt message.");
-            return null;
-        }
-        byte[] ivBytes = message.getEncryptedIv();
-        if (ivBytes == null) {
-            System.err.println("IV not found in message. Cannot decrypt message.");
-            return null;
-        }
-        IvParameterSpec IV = new IvParameterSpec(ivBytes);
-        String decryptedPayload = null;
-        try {
-            decryptedPayload = AESEncryptionUtil.decrypt(message.getPayload(), this.aesAdminKey, IV);
-        } catch (Exception e) {
-            System.err.println("Error during decription " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-        return decryptedPayload;
     }
     /**
      * Generates and sends the admin's AES session key to the server.

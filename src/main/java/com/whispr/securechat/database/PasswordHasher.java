@@ -17,8 +17,6 @@ public class PasswordHasher {
      * @return A string containing the generated salt and the password hash.
      */
     public static String hashPassword(String password) {
-        // BCrypt.hashpw(password, BCrypt.gensalt()) generuje sól i haszuje hasło
-        // gensalt() automatycznie generuje odpowiednią sól.
         return BCrypt.hashpw(password, BCrypt.gensalt());
     }
 
@@ -32,9 +30,6 @@ public class PasswordHasher {
      * @return true if the password matches the hash, false otherwise.
      */
     public static boolean checkPassword(String password, String hashedPassword) {
-        // BCrypt.checkpw porównuje podane hasło z haszem.
-        // Działa to tak, że hasz zawiera w sobie sól,
-        // więc biblioteka sama jej użyje do porównania.
         return BCrypt.checkpw(password, hashedPassword);
     }
 }

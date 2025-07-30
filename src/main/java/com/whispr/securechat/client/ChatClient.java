@@ -45,7 +45,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     private final ConcurrentHashMap<String, PublicKey> userPublicKeys; // Caches the public keys of other users for starting E2E sessions
     private final Gson gson = new Gson();
     private final Map<String, Queue<String>> pendingMessages;
-    private ErrorListener errorListener;
     private SessionStateListener sessionListener;
     private AuthListener authListener;
     private KickedListener kickedListener;
@@ -81,66 +80,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
             throw new RuntimeException(e);
         }
     }
-
-//    public static void main(String[] args) {
-//        ChatClient client = new ChatClient("localhost", Constants.SERVER_PORT);
-//        try {
-//            client.connect();
-//            client.sendClientPublicRSAKey();
-//            Thread.sleep(500); // Give time for key exchange
-//            client.sendClientAESKey();
-//            System.out.println("Secure session with server established.");
-//            Thread.sleep(500);
-//
-//            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-//            while (true) {
-//                System.out.println("Enter 'register' or 'login':");
-//                String action = reader.readLine();
-//
-//                if ("register".equalsIgnoreCase(action)) {
-//                    System.out.println("Enter username:");
-//                    String username = reader.readLine();
-//                    System.out.println("Enter password:");
-//                    String password = reader.readLine();
-//                    client.register(username, password);
-//                    // In a real app, you'd wait for a success message.
-//                    // For this test, we'll just try to log in next.
-//                    System.out.println("Registration request sent. Please restart and log in.");
-//                    return;
-//                } else if ("login".equalsIgnoreCase(action)) {
-//                    System.out.println("Enter username:");
-//                    String username = reader.readLine();
-//                    System.out.println("Enter password:");
-//                    String password = reader.readLine();
-//                    client.login(username, password);
-//                    break;
-//                } else {
-//                    System.out.println("Invalid action. Use 'register' or 'login'.");
-//                }
-//            }
-//
-//            System.out.println("\nEnter messages in the format 'recipient:message'. Type 'exit' to quit.");
-//            while (true) {
-//                String line = reader.readLine();
-//                if (line == null || "exit".equalsIgnoreCase(line)) {
-//                    client.disconnect();
-//                    break;
-//                }
-//
-//                String[] parts = line.split(":", 2);
-//                if (parts.length == 2) {
-//                    String recipient = parts[0].trim();
-//                    String messageText = parts[1].trim();
-//                    client.sendMessage(recipient, messageText);
-//                } else {
-//                    System.out.println("Invalid format. Use 'recipient:message'.");
-//                }
-//            }
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
 
     /**
      * Connects the client to the server.
@@ -290,13 +229,17 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 encryptedAesKeyBase64,
                 System.currentTimeMillis()
         );
-        // Senbding message
         networkManager.sendData(aesKeyMessage);
         System.out.println("An encrypted AES key was sent.");
         clientAESKeySent = true;
     }
 
-    // Wewnętrzna klasa/interfejs do obsługi odbierania wiadomości od serwera troche to hjest myslace
+    /**
+     * Processes incoming messages from the server.
+     * This method is the core message handler that routes different message types
+     * to the appropriate processing logic and notifies relevant listeners.
+     * @param message The incoming message to process
+     */
     private void handleIncomingMessage(Message message) {
         switch (message.getType()) {
             case PUBLIC_KEY_EXCHANGE:
@@ -306,7 +249,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     System.out.println("The server's RSA key has been received.");
                     sendClientAESKey();
                 } catch (Exception e) {
-                    // ... obsługa błędu
                     if (sessionListener != null) {
                         sessionListener.onSessionFailed("Could not process server public key.");
                     }
@@ -360,14 +302,11 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
 
             case E2E_SESSION_KEY_SHARE:
                 try {
-                    //now we receiving shared key
                     String sender = message.getSender();
                     byte[] encryptedAESKey = Base64.getDecoder().decode(message.getPayload());
 
                     byte[] decryptedAESKeyBytes = RSAEncryptionUtil.decryptRSA(encryptedAESKey, this.rsaKeyPair.getPrivate());
                     SecretKey sharedKey = new SecretKeySpec(decryptedAESKeyBytes, 0, decryptedAESKeyBytes.length, "AES");
-
-                    //store it
                     conversationKeys.put(sender, sharedKey);
                     System.out.println("Established secure E2E session with " + sender);
                     Queue<String> pending = pendingMessages.get(sender);
@@ -379,17 +318,13 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                     e.printStackTrace();
                 }
                 break;
-
             case CHAT_MESSAGE:
-                //decrypt with specific key
                 SecretKey conversationKey = conversationKeys.get(message.getSender());
                 if (conversationKey != null) {
                     try {
                         IvParameterSpec iv = new IvParameterSpec(message.getEncryptedIv());
                         String content = AESEncryptionUtil.decrypt(message.getPayload(), conversationKey, iv);
                         System.out.println("Decrypted E2E message from " + message.getSender() + ": " + content);
-
-                        //notify message listener
                         if (messageListener != null) {
                             messageListener.onMessageReceived(message.getSender(), content);
                         }
@@ -445,7 +380,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                         sessionListener.onSessionEstablished();
                     }
                 }
-                // obsłuż inne komunikaty SERVER_INFO, jeśli są
                 break;
 
             case LOGIN_SUCCESS:
@@ -467,10 +401,9 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
                 }
                 disconnect();
                 break;
-            case ERROR: // Istniejący case ERROR nadal może być używany
+            case ERROR:
                 String errorMessage = decryptedPayload(message);
                 System.err.println("ERROR from server: " + errorMessage);
-                // Możemy zmapować ogólne błędy na konkretne niepowodzenia
                 if (authListener != null) {
                     if (errorMessage.contains("incorrect")) {
                         authListener.onLoginFailure(errorMessage);
@@ -484,7 +417,20 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
 
     }
-
+/**
+ * Decrypts the payload of a message using the client-server AES session key.
+ *
+ * <p>This method takes an encrypted message and uses the client's AES session key
+ * along with the Initialization Vector (IV) contained in the message to decrypt
+ * the payload. This is used for messages exchanged directly with the server.</p>
+ *
+ *
+ * @param message The encrypted message to decrypt
+ * @return The decrypted payload as a string, or null if decryption fails
+ * @throws RuntimeException if a decryption error occurs
+ * @deprecated This method should not be in ChatClient class.!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ */
+ @Deprecated
     public String decryptedPayload(Message message) {
         if (this.aesKey == null) {
             System.err.println("Brak klucza AES sesji");
@@ -512,7 +458,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     public interface MessageReceivedListener {
         void onMessageReceived(String sender, String content);
     }
-
     /**
      * Logs the user in.
      * Encrypts login credentials with the client-server session key and sends them.
@@ -553,7 +498,6 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         String publicKeyB64 = Base64.getEncoder().encodeToString(this.rsaKeyPair.getPublic().getEncoded());
         LoginPayload payload = new LoginPayload(username, password, publicKeyB64); // Assuming you add publicKey to LoginPayload
         String jsonPayload = new Gson().toJson(payload);
-
         // Encrypt payload with server session key
         IvParameterSpec iv = AESEncryptionUtil.generateIVParameterSpec();
         String encryptedPayload = AESEncryptionUtil.encrypt(jsonPayload.getBytes(), this.aesKey, iv);
@@ -568,7 +512,11 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         );
         networkManager.sendData(registerMessage);
     }
-
+    /**
+     * Logs the user out of the system.
+     * Sends a logout message to the server, then disconnects the client.
+     * This method will clean up resources even if sending the logout message fails.
+     */
     public void logout() {
         if (networkManager != null && this.username != null) {
             try {
@@ -593,23 +541,50 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
     }
 
-    public void setKickedListener(KickedListener listener) { // <-- DODAJ TEN SETTER
+    /**
+     * Sets a listener for handling user kick events.
+     * This listener is notified when the server kicks the user from the system.
+     * @param listener The KickedListener implementation to handle kick events
+     */
+    public void setKickedListener(KickedListener listener) {
         this.kickedListener = listener;
     }
 
+    /**
+     * Sets a listener for secure session state changes.
+     * This listener is notified when the secure session with the server is established or fails.
+     * @param listener The SessionStateListener implementation to handle session state events
+     */
     public void setSessionStateListener(SessionStateListener listener) {
         this.sessionListener = listener;
     }
 
+    /**
+     * Sets a listener for authentication events.
+     * This listener is notified about login and registration successes or failures.
+     * @param listener The AuthListener implementation to handle authentication events
+     */
     public void setAuthListener(AuthListener listener) {
         this.authListener = listener;
     }
 
-    // Metody do ustawiania listenerów
+    /**
+     * Sets a listener for incoming chat messages.
+     * This listener is notified when a message is received from another user.
+     * 
+     * @param listener The MessageReceivedListener implementation to handle received messages
+     */
     public void setMessageReceivedListener(MessageReceivedListener listener) {
         this.messageListener = listener;
     }
 
+    /**
+     * Sets a listener for user list updates.
+     * This listener is notified when the server sends an updated list of online users.
+     * If a list was received before the listener was set, it will be immediately delivered.
+     * 
+     * @param listener The UserListListener implementation to handle user list updates
+     */
     public void setUserListListener(UserListListener listener) {
         this.userListListener = listener;
         if (this.userListListener != null && this.bufferedUserList != null) {
@@ -619,7 +594,12 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         }
     }
 
-    // this method creat ConnectionStatusListener and implements creatConnectionStatusListener.
+    /**
+     * Creates a default implementation of the ConnectionStatusListener.
+     * This implementation simply logs connection status changes to the console.
+     * 
+     * @return A new ConnectionStatusListener instance
+     */
     private ConnectionStatusListener creatConnectionStatusListener() {
         return new ConnectionStatusListener() {
             @Override
@@ -633,6 +613,11 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         };
     }
 
+    /**
+     * Handles the event when the connection to the server is lost.
+     * This method is called by the {@link ClientNetworkManager} when it detects a connection loss.
+     * It notifies the connection status listener about the disconnection.
+     */
     @Override
     public void onConnectionLost() {
         System.err.println("Connection to server lost.");
@@ -642,9 +627,14 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
     }
 
 
+    /**
+     * Sets a listener for connection status changes.
+     * Currently this method ignores the provided listener and uses a default implementation.
+     * 
+     * @param listener The ConnectionStatusListener implementation (currently ignored)
+     */
     public void setConnectionStatusListener(ConnectionStatusListener listener) {
         this.connectionStatusListener = creatConnectionStatusListener();
-
     }
 
     /**
@@ -654,18 +644,21 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         void onUserListUpdated(Set<User> users);
     }
 
-    // nowy listener dla wiadomosci typu ERROR
-    public interface ErrorListener {
-        void onErrorReceived(String errorMessage);
-    }
-
-    public void setErrorListener(ErrorListener listener) {
-        this.errorListener = listener;
-    }
-
+    /**
+     * Interface for handling secure session state events.
+     * Implementations receive notifications about session establishment success or failure.
+     */
     public interface SessionStateListener {
+        /**
+         * Called when a secure session with the server has been successfully established.
+         */
         void onSessionEstablished();
 
+        /**
+         * Called when a secure session with the server failed to be established.
+         * 
+         * @param reason The reason for the session establishment failure
+         */
         void onSessionFailed(String reason);
     }
 
@@ -682,15 +675,37 @@ public class ChatClient implements ClientNetworkManager.ConnectionStatusNotifier
         void onRegisterFailure(String reason);
     }
 
+    /**
+     * Interface for handling connection status change events.
+     * Implementations receive notifications when the client connects to or disconnects from the server.
+     */
     public interface ConnectionStatusListener {
+        /**
+         * Called when the connection status changes.
+         * 
+         * @param connected true if the client is now connected, false if disconnected
+         */
         void onConnectionStatusChanged(boolean connected);
     }
 
+    /**
+     * Interface for handling user kick events.
+     * Implementations receive notifications when the user is kicked from the server.
+     */
     public interface KickedListener {
+        /**
+         * Called when the user is kicked from the server.
+         * 
+         * @param reason The reason why the user was kicked
+         */
         void onKicked(String reason);
     }
 
-
+    /**
+     * Gets the username of the currently logged-in user.
+     * 
+     * @return The username of the current user, or null if not logged in
+     */
     public String getUsername() {
         return this.username;
     }

@@ -11,48 +11,78 @@ import java.nio.charset.StandardCharsets;
 import com.whispr.securechat.common.Message;
 
 import static com.whispr.securechat.common.MessageType.CHAT_MESSAGE;
-
+/**
+ * Manages network communication for the client side of the secure chat application.
+ * This class handles sending and receiving messages to/from the server, and runs
+ * in its own thread to continuously listen for incoming messages.
+ */
 public class ClientNetworkManager implements Runnable {
+    /** The socket connection to the server */
         public Socket socket;
-        public BufferedReader stdin;
-        private ObjectOutputStream objectOut;
-        private ObjectInputStream objectIn;
-        private MessageReceiver messageReceiver;
-        private ConnectionStatusNotifier statusNotifier;
+    /** BufferedReader for reading from standard input (used for testing) */
+    public BufferedReader stdin;
+    /** Output stream for sending serialized objects to the server */
+    private ObjectOutputStream objectOut;
+    /** Input stream for receiving serialized objects from the server */
+    private ObjectInputStream objectIn;
+    /** Callback interface for handling received messages */
+    private MessageReceiver messageReceiver;
+    /** Callback interface for handling connection status changes */
+    private ConnectionStatusNotifier statusNotifier;
 
+
+    /**
+     * Constructs a new ClientNetworkManager with the specified socket connection.
+     * Initializes the input/output streams and standard input reader.
+     * @param socket The socket connection to the server.
+     * @throws RuntimeException if stream initialization fails.
+     */
 
         public ClientNetworkManager(Socket socket) {
             this.socket = socket;
             try {
-                // Najpierw tworzymy ObjectOutputStream i flushujemy go
                 this.objectOut = new ObjectOutputStream(socket.getOutputStream());
                 this.objectOut.flush();  //opróznia bufor i wysyła wiadomość
-                // Potem tworzymy ObjectInputStream
                 this.objectIn = new ObjectInputStream(socket.getInputStream());
-                // Standardowy input do wczytywania z klawiatury (do testów)
                 this.stdin = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
-        public void setMessageReceiver(MessageReceiver receiver) {
+    /**
+     * Sets the message receiver callback for handling incoming messages.
+     * @param receiver The MessageReceiver implementation to handle received messages
+     */
+
+    public void setMessageReceiver(MessageReceiver receiver) {
             this.messageReceiver = receiver;
         }
+    /**
+     * Sends a message object to the server.
+     * (This method is synchronized to prevent concurrent access to the output stream.)
+     * @param message The Message object to send to the server
+     * @throws Exception If an error occurs during message transmission
+     */
 
         public synchronized void  sendData(Message message) throws Exception {
                         objectOut.writeObject(message);
                         objectOut.flush();
                         System.out.println("Klient: " + message);
         }
-        @Override
+    /**
+     * Main execution loop for the network manager thread.
+     * Continuously listens for incoming messages from the server and processes them.
+     * <p>The method handles different types of messages and delegates processing
+     * to the registered MessageReceiver. In case of connection issues, it notifies
+     * the ConnectionStatusNotifier and closes all resources.</p>
+     */
+
+    @Override
         public void run() {
             try {
                 while (!socket.isClosed()) {
-                    // Odczyt obiektu typu Message
                     Object obj = objectIn.readObject();
                     if (obj instanceof Message message) {
-                        //tymczasowe roziwazanie wyswietlania w konsoli wiadomosci
-
                         if(message.getType()==CHAT_MESSAGE){
                             System.out.println(message);
                         }else {
@@ -79,7 +109,9 @@ public class ClientNetworkManager implements Runnable {
                 close();
             }
         }
-
+    /**
+     * Closes all network resources including streams and socket connection.
+     */
         public void close() {
             try {
                 if (objectIn != null) objectIn.close();
@@ -90,16 +122,30 @@ public class ClientNetworkManager implements Runnable {
                 e.printStackTrace();
             }
         }
-         public void setConnectionStatusNotifier(ConnectionStatusNotifier notifier) {
+    /**
+     * Sets the connection status notifier for handling connection state changes.
+     * @param notifier The ConnectionStatusNotifier implementation to handle connection events
+     */
+    public void setConnectionStatusNotifier(ConnectionStatusNotifier notifier) {
         this.statusNotifier = notifier;
         }
-
-    //     Interfejs dla odbiorcy wiadomości
+    /**
+     * Interface for receiving and processing incoming messages from the server.
+     * Implementations of this interface define how different types of messages
+     * should be handled by the client application.
+     */
         public interface MessageReceiver {
-            void onMessageReceived(Message message);
-        }
+        /**
+         * Called when a message is received from the server.
+         * @param message The received Message object
+         */
 
-        // new interface made in order to give notification to ChatClient
+        void onMessageReceived(Message message);
+        }
+    /**
+     * Interface for receiving notifications about connection status changes.
+     * This allows the client application to respond appropriately connection loss.
+     */
         public interface ConnectionStatusNotifier {
             void onConnectionLost();
         }

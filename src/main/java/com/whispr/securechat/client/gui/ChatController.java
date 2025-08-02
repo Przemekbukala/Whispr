@@ -59,7 +59,7 @@ public class ChatController implements ChatClient.MessageReceivedListener, ChatC
             client.setUserListListener(this);
 
             if (welcomeLabel != null && client.getUsername() != null) {
-                welcomeLabel.setText("Witaj, " + client.getUsername());
+                welcomeLabel.setText("Welcome, " + client.getUsername());
             }
         }
 

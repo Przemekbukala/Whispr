@@ -5,11 +5,11 @@
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.whispr.securechat.client.gui.LoginController" prefWidth="400" prefHeight="300">
     <children>
         <VBox spacing="10" alignment="CENTER" layoutX="50" layoutY="50">
-            <TextField fx:id="usernameField" promptText="Nazwa użytkownika"/>
-            <PasswordField fx:id="passwordField" promptText="Hasło"/>
+            <TextField fx:id="usernameField" promptText="Username"/>
+            <PasswordField fx:id="passwordField" promptText="Password"/>
             <Label fx:id="statusLabel"/>
-            <Button text="Zaloguj" onAction="#handleLoginButtonAction"/>
-            <Button text="Zarejestruj" onAction="#handleRegisterButtonAction"/>
+            <Button text="Log in" onAction="#handleLoginButtonAction"/>
+            <Button text="Sign Up" onAction="#handleRegisterButtonAction"/>
         </VBox>
     </children>
 </AnchorPane>

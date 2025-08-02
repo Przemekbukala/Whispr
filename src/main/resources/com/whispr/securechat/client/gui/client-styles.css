@@ -1,11 +1,8 @@
-/* Plik: src/main/resources/com/whispr/securechat/server/gui/admin-styles.css */
 
-/* Główny kontener aplikacji */
 .root-pane {
     -fx-background-color: #f7f9fc;
 }
 
-/* Górna belka z tytułem */
 .header-bar {
     -fx-background-color: #ffffff;
     -fx-border-color: #e0e0e0;
@@ -18,14 +15,14 @@
     -fx-text-fill: #1B192B;
 }
 
-/* Dolna belka z przyciskami */
+
 .footer-bar {
     -fx-background-color: #ffffff;
     -fx-border-color: #e0e0e0;
     -fx-border-width: 1 0 0 0;
 }
 
-/* Styl dla "kart" w panelu środkowym */
+
 .card {
     -fx-background-color: #ffffff;
     -fx-background-radius: 12;

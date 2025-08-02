@@ -19,7 +19,7 @@
     <top>
         <HBox alignment="CENTER_LEFT" prefHeight="50.0" style="-fx-padding: 0 0 0 15; -fx-border-width: 0 0 1 0; -fx-border-color: #e0e0e0;">
             <children>
-                <Label text="Panel Administratora Whispr">
+                <Label text="Whispr Admin Panel">
                     <font>
                         <Font name="System Bold" size="16.0"/>
                     </font>
@@ -36,7 +36,7 @@
                         <VBox spacing="10.0" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"
                               AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0">
                             <children>
-                                <Label text="Zalogowani użytkownicy"/>
+                                <Label text="Online users"/>
                                 <ListView fx:id="usersListView" VBox.vgrow="ALWAYS"/>
                             </children>
                         </VBox>
@@ -48,7 +48,7 @@
                         <VBox spacing="10.0" AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"
                               AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0">
                             <children>
-                                <Label text="Logi serwera"/>
+                                <Label text="Server Logs"/>
                                 <TextArea fx:id="logTextArea" editable="false" VBox.vgrow="ALWAYS"/>
                             </children>
                         </VBox>
@@ -63,10 +63,10 @@
             <children>
                 <Button fx:id="resetPasswordButton"
                         prefHeight="40.0"
-                        text="Resetuj hasło użytkownika"/>
+                        text="Reset user password"/>
                 <Button fx:id="kickUserButton"
                         prefHeight="40.0"
-                        text="Wyrzuć użytkownika"/>
+                        text="Kick user"/>
             </children>
         </HBox>
     </bottom>

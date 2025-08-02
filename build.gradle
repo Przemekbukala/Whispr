@@ -18,8 +18,6 @@ java {
 }
 //DEPENDENCIES
 dependencies {
-//    implementation 'io.github.palexdev:materialfx:11.17.0'
-
     implementation 'com.google.code.gson:gson:2.13.1'
     implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
     implementation 'org.mindrot:jbcrypt:0.4'
@@ -32,7 +30,6 @@ dependencies {
     testImplementation 'org.assertj:assertj-core:3.26.3'
 }
 
-//JAVA FX
 javafx {
     version = "21"
     modules = [ 'javafx.controls', 'javafx.fxml' ]
@@ -44,14 +41,10 @@ application {
 }
 
 test {
-    // Użyj platformy JUnit 5 do uruchamiania testów.
     useJUnitPlatform(){
         version = '5.10.3'
     }
-
-    // Skonfiguruj logowanie wyników testów w konsoli.
     testLogging {
-        // Pokazuj status dla testów, które przeszły, zostały pominięte lub zakończyły się błędem.
         events "passed", "skipped", "failed"
     }
 }
@@ -69,23 +62,12 @@ tasks.register('runAdmin', JavaExec) {
     description = 'Runs the Admin GUI application'
     mainClass = 'com.whispr.securechat.admin.gui.AdminApplication'
     classpath = sourceSets.main.runtimeClasspath + configurations.runtimeClasspath
-
-    // Jawne dodanie argumentów JVM dla JavaFX
     jvmArgs = [
             '--module-path', classpath.filter { it.name.contains('javafx') }.asPath,
             '--add-modules', 'javafx.controls,javafx.fxml'
     ]
 }
 
-tasks.register('runClientTerminal', JavaExec) {
-    group = 'Application'
-    description = 'Runs the interactive terminal client'
-    mainClass = 'com.whispr.securechat.client.ChatClient'
-    classpath = sourceSets.main.runtimeClasspath
-    standardInput = System.in
-}
-
-//CONFIG TASKS
 tasks.register('setupAdmin', JavaExec) {
     group = 'Utilities' // Osobna grupa dla narzędzi
     description = 'Runs the one-time admin account setup'
